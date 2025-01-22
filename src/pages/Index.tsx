@@ -19,19 +19,15 @@ const Index = () => {
   const fetchWaybackUrls = async (domain: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&collapse=urlkey`,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Origin': window.location.origin,
-            'Access-Control-Request-Method': 'GET',
-          },
-          mode: 'cors',
-          credentials: 'omit'
+      // Using cors-anywhere as a proxy to bypass CORS
+      const proxyUrl = 'https://api.allorigins.win/raw?url=';
+      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&collapse=urlkey`;
+      const response = await fetch(`${proxyUrl}${encodeURIComponent(waybackUrl)}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
         }
-      );
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
