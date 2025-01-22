@@ -27,6 +27,9 @@ export const getContentType = (url: string): string => {
   if (extension === 'pdf') {
     return 'pdfs';
   }
+  if (['xls', 'xlsx', 'xlsm', 'xlsb'].includes(extension)) {
+    return 'excel';
+  }
   return 'others';
 };
 

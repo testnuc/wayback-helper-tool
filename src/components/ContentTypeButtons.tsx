@@ -5,7 +5,8 @@ import {
   FileText, 
   Image, 
   Video, 
-  Files 
+  Files,
+  FileSpreadsheet 
 } from "lucide-react";
 
 interface ContentTypeButtonsProps {
@@ -16,6 +17,7 @@ interface ContentTypeButtonsProps {
     images: number;
     videos: number;
     pdfs: number;
+    excel: number;
     others: number;
   };
   onFilter: (type: string) => void;
@@ -34,6 +36,7 @@ export const ContentTypeButtons = ({
     { type: "images", icon: Image, label: "Images", count: counts.images },
     { type: "videos", icon: Video, label: "Videos", count: counts.videos },
     { type: "pdfs", icon: FileText, label: "PDFs", count: counts.pdfs },
+    { type: "excel", icon: FileSpreadsheet, label: "Excel", count: counts.excel },
     { type: "others", icon: Files, label: "Others", count: counts.others },
   ];
 
