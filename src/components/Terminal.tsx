@@ -32,6 +32,8 @@ export const Terminal = ({ logs }: TerminalProps) => {
   const successfulFiles = logs.filter(log => log.status >= 200 && log.status < 300).length;
   const warningFiles = logs.filter(log => log.status >= 300 && log.status < 400).length;
   const errorFiles = logs.filter(log => log.status >= 400).length;
+  const processedFiles = successfulFiles + warningFiles + errorFiles;
+  const processingProgress = totalFiles > 0 ? Math.round((processedFiles / totalFiles) * 100) : 0;
 
   return (
     <div className="space-y-4">
@@ -73,28 +75,42 @@ export const Terminal = ({ logs }: TerminalProps) => {
             <div className="flex flex-col items-center justify-center space-y-2 py-8">
               <div className="flex items-center space-x-2">
                 <span className="text-terminal-success">❯</span>
-                <span>Waiting for URL input...</span>
+                <span>Terminal Ready</span>
                 <span className="animate-blink">▊</span>
               </div>
               <div className="text-terminal-text/50 text-xs">
-                Ready to fetch and analyze archived URLs
+                Waiting for URL input to begin analysis...
+              </div>
+              <div className="text-terminal-text/50 text-xs mt-4">
+                System Status:
               </div>
               <div className="text-terminal-text/50 text-xs">
-                URLs found: {totalFiles} | Processing: {logs.length} | Completed: {successfulFiles}
+                • URLs Found: {totalFiles}
               </div>
               <div className="text-terminal-text/50 text-xs">
-                Status: {logs.length > 0 ? 'Fetching and processing URLs...' : 'Waiting for input'}
+                • Processing Queue: {logs.length} URLs
+              </div>
+              <div className="text-terminal-text/50 text-xs">
+                • Completed: {processedFiles} ({processingProgress}%)
+              </div>
+              <div className="text-terminal-text/50 text-xs">
+                • Success Rate: {totalFiles > 0 ? Math.round((successfulFiles / totalFiles) * 100) : 0}%
               </div>
             </div>
           ) : (
             <div className="space-y-2">
               <div className="text-terminal-text/50 mb-4">
-                Processing {logs.length > 0 ? 'in progress' : 'complete'}. Found {totalFiles} archived URLs.
-                {logs.length > 0 && (
-                  <div className="text-xs mt-1">
-                    Processing: {logs.length} URLs | Success: {successfulFiles} | Redirects: {warningFiles} | Errors: {errorFiles}
-                  </div>
-                )}
+                <div className="mb-2">
+                  Processing Status: {logs.length === totalFiles ? 'Complete' : 'In Progress'}
+                </div>
+                <div className="text-xs space-y-1">
+                  <div>• Total URLs Found: {totalFiles}</div>
+                  <div>• Currently Processing: {logs.length} URLs</div>
+                  <div>• Successfully Processed: {successfulFiles} URLs</div>
+                  <div>• Redirects Encountered: {warningFiles}</div>
+                  <div>• Errors Found: {errorFiles}</div>
+                  <div>• Overall Progress: {processingProgress}% Complete</div>
+                </div>
               </div>
               {sortedLogs.map((log, index) => (
                 <div
