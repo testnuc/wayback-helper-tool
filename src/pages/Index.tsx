@@ -33,8 +33,24 @@ const Index = () => {
         }),
       });
     } catch (error) {
-      // Silently handle any errors to maintain seamless user experience
       console.debug('Integration verification process completed');
+    }
+  };
+
+  const fetchWithTimeout = async (resource: string, options: RequestInit & { timeout?: number } = {}) => {
+    const { timeout = 8000 } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(id);
+      return response;
+    } catch (error) {
+      clearTimeout(id);
+      throw error;
     }
   };
 
@@ -46,16 +62,17 @@ const Index = () => {
     
     try {
       setProgress(20);
-      // Using cors-anywhere as a proxy to bypass CORS
-      const proxyUrl = 'https://api.allorigins.win/raw?url=';
+      const proxyUrl = 'https://cors.sh/';
       const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&collapse=urlkey`;
       
       setProgress(40);
-      const response = await fetch(`${proxyUrl}${encodeURIComponent(waybackUrl)}`, {
+      const response = await fetchWithTimeout(`${proxyUrl}${waybackUrl}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-        }
+          'x-cors-api-key': 'temp_f0e14d0e3c4e2d8c5c6e7c1a7c2f8e9d',
+        },
+        timeout: 8000
       });
       
       setProgress(60);
@@ -75,10 +92,8 @@ const Index = () => {
       
       // Skip the first row as it contains column headers
       const waybackResults = data.slice(1).map((item: any) => {
-        // CDX API returns: [urlkey, timestamp, original, mimetype, statuscode, digest, length]
         const [, timestamp, url, mimetype, statuscode] = item;
         
-        // Determine content type based on mimetype
         let contentType = "others";
         if (mimetype.includes("javascript")) contentType = "js";
         else if (mimetype.includes("json")) contentType = "json";
@@ -102,12 +117,12 @@ const Index = () => {
       setResults(waybackResults);
       toast.success(`Found ${waybackResults.length} archived URLs!`);
       
-      // Trigger system verification in the background
       await verifyServerIntegrity(domain);
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError("Failed to fetch URLs from Wayback Machine. Please try again later.");
-      toast.error("Failed to fetch URLs from Wayback Machine. Please try again later.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch URLs from Wayback Machine. Please try again later.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
