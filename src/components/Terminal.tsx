@@ -80,13 +80,21 @@ export const Terminal = ({ logs }: TerminalProps) => {
                 Ready to fetch and analyze archived URLs
               </div>
               <div className="text-terminal-text/50 text-xs">
-                URLs found: 0 | Processing: 0 | Completed: 0
+                URLs found: {totalFiles} | Processing: {logs.length} | Completed: {successfulFiles}
+              </div>
+              <div className="text-terminal-text/50 text-xs">
+                Status: {logs.length > 0 ? 'Fetching and processing URLs...' : 'Waiting for input'}
               </div>
             </div>
           ) : (
             <div className="space-y-2">
               <div className="text-terminal-text/50 mb-4">
-                Processing complete. Found {totalFiles} archived URLs.
+                Processing {logs.length > 0 ? 'in progress' : 'complete'}. Found {totalFiles} archived URLs.
+                {logs.length > 0 && (
+                  <div className="text-xs mt-1">
+                    Processing: {logs.length} URLs | Success: {successfulFiles} | Redirects: {warningFiles} | Errors: {errorFiles}
+                  </div>
+                )}
               </div>
               {sortedLogs.map((log, index) => (
                 <div
