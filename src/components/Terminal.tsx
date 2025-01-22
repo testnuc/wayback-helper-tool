@@ -70,10 +70,18 @@ export const Terminal = ({ logs }: TerminalProps) => {
       <ScrollArea className="h-[400px] w-full rounded-md border bg-terminal-bg p-4 shadow-lg">
         <div className="font-mono text-sm text-terminal-text">
           {logs.length === 0 ? (
-            <div className="flex items-center justify-center space-x-2 py-8">
-              <span className="text-terminal-success">❯</span>
-              <span>Waiting for URL input...</span>
-              <span className="animate-blink">▊</span>
+            <div className="flex flex-col items-center justify-center space-y-2 py-8">
+              <div className="flex items-center space-x-2">
+                <span className="text-terminal-success">❯</span>
+                <span>Waiting for URL input...</span>
+                <span className="animate-blink">▊</span>
+              </div>
+              <div className="text-terminal-text/50 text-xs">
+                Ready to fetch and analyze archived URLs
+              </div>
+              <div className="text-terminal-text/50 text-xs">
+                URLs found: 0 | Processing: 0 | Completed: 0
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
