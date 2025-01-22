@@ -1,7 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface TerminalProps {
   logs: Array<{
@@ -13,6 +13,11 @@ interface TerminalProps {
 
 export const Terminal = ({ logs }: TerminalProps) => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [processedCount, setProcessedCount] = useState(0);
+
+  useEffect(() => {
+    setProcessedCount(logs.length);
+  }, [logs]);
 
   const getStatusColor = (status: number) => {
     if (status >= 200 && status < 300) return "text-terminal-success";
@@ -82,13 +87,16 @@ export const Terminal = ({ logs }: TerminalProps) => {
                 Waiting for URL input to begin analysis...
               </div>
               <div className="text-terminal-text/50 text-xs mt-4">
-                System Status:
+                Real-time Status:
               </div>
               <div className="text-terminal-text/50 text-xs">
                 • URLs Found: {totalFiles}
               </div>
               <div className="text-terminal-text/50 text-xs">
                 • Processing Queue: {logs.length} URLs
+              </div>
+              <div className="text-terminal-text/50 text-xs">
+                • Currently Processing: {processedCount} URLs
               </div>
               <div className="text-terminal-text/50 text-xs">
                 • Completed: {processedFiles} ({processingProgress}%)
@@ -101,11 +109,11 @@ export const Terminal = ({ logs }: TerminalProps) => {
             <div className="space-y-2">
               <div className="text-terminal-text/50 mb-4">
                 <div className="mb-2">
-                  Processing Status: {logs.length === totalFiles ? 'Complete' : 'In Progress'}
+                  Processing Status: {processedFiles === totalFiles ? 'Complete' : 'In Progress'}
                 </div>
                 <div className="text-xs space-y-1">
                   <div>• Total URLs Found: {totalFiles}</div>
-                  <div>• Currently Processing: {logs.length} URLs</div>
+                  <div>• Currently Processing: {processedCount} URLs</div>
                   <div>• Successfully Processed: {successfulFiles} URLs</div>
                   <div>• Redirects Encountered: {warningFiles}</div>
                   <div>• Errors Found: {errorFiles}</div>
