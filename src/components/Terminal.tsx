@@ -21,12 +21,17 @@ export const Terminal = ({ logs }: TerminalProps) => {
   };
 
   const sortedLogs = [...logs].sort((a, b) => {
-    return sortOrder === 'asc' ? a.status - b.status : b.status - a.status;
+    return sortOrder === 'asc' ? a.status - b.status : b.status - b.status;
   });
 
   const toggleSort = () => {
     setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
   };
+
+  const totalFiles = logs.length;
+  const successfulFiles = logs.filter(log => log.status >= 200 && log.status < 300).length;
+  const warningFiles = logs.filter(log => log.status >= 300 && log.status < 400).length;
+  const errorFiles = logs.filter(log => log.status >= 400).length;
 
   return (
     <div className="space-y-4">
@@ -43,6 +48,25 @@ export const Terminal = ({ logs }: TerminalProps) => {
         </Button>
       </div>
       
+      <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="bg-terminal-bg rounded-lg p-3 border border-terminal-text/10">
+          <div className="text-sm text-terminal-text/70">Total Files</div>
+          <div className="text-xl font-mono text-terminal-text">{totalFiles}</div>
+        </div>
+        <div className="bg-terminal-bg rounded-lg p-3 border border-terminal-text/10">
+          <div className="text-sm text-terminal-text/70">Successful (2xx)</div>
+          <div className="text-xl font-mono text-terminal-success">{successfulFiles}</div>
+        </div>
+        <div className="bg-terminal-bg rounded-lg p-3 border border-terminal-text/10">
+          <div className="text-sm text-terminal-text/70">Redirects (3xx)</div>
+          <div className="text-xl font-mono text-terminal-warning">{warningFiles}</div>
+        </div>
+        <div className="bg-terminal-bg rounded-lg p-3 border border-terminal-text/10">
+          <div className="text-sm text-terminal-text/70">Errors (4xx/5xx)</div>
+          <div className="text-xl font-mono text-terminal-error">{errorFiles}</div>
+        </div>
+      </div>
+      
       <ScrollArea className="h-[400px] w-full rounded-md border bg-terminal-bg p-4 shadow-lg">
         <div className="font-mono text-sm text-terminal-text">
           {logs.length === 0 ? (
@@ -53,6 +77,9 @@ export const Terminal = ({ logs }: TerminalProps) => {
             </div>
           ) : (
             <div className="space-y-2">
+              <div className="text-terminal-text/50 mb-4">
+                Processing complete. Found {totalFiles} archived URLs.
+              </div>
               {sortedLogs.map((log, index) => (
                 <div
                   key={index}
