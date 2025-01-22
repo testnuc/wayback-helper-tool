@@ -16,7 +16,7 @@ interface WaybackResult {
 }
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
+const RETRY_DELAY = 2000; // Increased to 2 seconds
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -82,19 +82,32 @@ const Index = () => {
 
   const fetchWithRetry = async (url: string, retries = MAX_RETRIES): Promise<Response> => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'text/plain',
         },
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorMessage = `HTTP error! status: ${response.status}`;
+        console.error(errorMessage);
+        throw new Error(errorMessage);
       }
 
       return response;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Request timed out');
+        throw new Error('Request timed out. The server is taking too long to respond.');
+      }
+
       if (retries > 0) {
         console.log(`Retry attempt ${MAX_RETRIES - retries + 1} of ${MAX_RETRIES}`);
         await sleep(RETRY_DELAY);
@@ -153,10 +166,10 @@ const Index = () => {
       let errorMessage = "Failed to fetch URLs from Wayback Machine. Please try again later.";
       
       if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch')) {
-          errorMessage = "Network error: Please check your internet connection and try again.";
+        if (error.message.includes('timed out')) {
+          errorMessage = "The request timed out. The Wayback Machine service might be experiencing high load. Please try again later.";
         } else if (error.message.includes('HTTP error')) {
-          errorMessage = "Server error: The Wayback Machine service is currently unavailable. Please try again later.";
+          errorMessage = "The Wayback Machine service is currently unavailable. Please try again in a few minutes.";
         } else {
           errorMessage = error.message;
         }
