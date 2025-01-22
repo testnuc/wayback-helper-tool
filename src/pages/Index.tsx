@@ -54,8 +54,8 @@ const Index = () => {
       // Clean the domain - remove protocol and trailing slashes
       const cleanDomain = domain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
       
-      // Construct the Wayback Machine API URL with the provided format
-      const waybackUrl = `http://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(cleanDomain)}/*&output=json&collapse=urlkey&fl=timestamp,original,mimetype,statuscode`;
+      // Construct the Wayback Machine API URL with the exact format
+      const waybackUrl = `http://web.archive.org/cdx/search/cdx?url=${cleanDomain}${cleanDomain}/*&output=json&collapse=urlkey&fl=timestamp,original,mimetype,statuscode`;
       
       // Construct the proxy URL
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl)}`;
