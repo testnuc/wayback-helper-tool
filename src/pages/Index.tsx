@@ -56,10 +56,11 @@ const Index = () => {
       
       // Construct the Wayback Machine API URL with proper encoding
       const waybackUrl = new URL('https://web.archive.org/cdx/search/cdx');
-      waybackUrl.searchParams.append('url', cleanDomain);
+      waybackUrl.searchParams.append('url', `${cleanDomain}/*`); // Add wildcard to get all URLs
       waybackUrl.searchParams.append('output', 'json');
       waybackUrl.searchParams.append('collapse', 'urlkey');
       waybackUrl.searchParams.append('fl', 'timestamp,original,mimetype,statuscode');
+      waybackUrl.searchParams.append('limit', '1000'); // Add limit to get more results
       
       // Construct the proxy URL
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl.toString())}`;
