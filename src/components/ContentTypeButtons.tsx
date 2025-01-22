@@ -5,7 +5,6 @@ import {
   FileText, 
   Image, 
   Video, 
-  FilePdf, 
   Files 
 } from "lucide-react";
 
@@ -34,7 +33,7 @@ export const ContentTypeButtons = ({
     { type: "text", icon: FileText, label: "Text", count: counts.text },
     { type: "images", icon: Image, label: "Images", count: counts.images },
     { type: "videos", icon: Video, label: "Videos", count: counts.videos },
-    { type: "pdfs", icon: FilePdf, label: "PDFs", count: counts.pdfs },
+    { type: "pdfs", icon: FileText, label: "PDFs", count: counts.pdfs },
     { type: "others", icon: Files, label: "Others", count: counts.others },
   ];
 
