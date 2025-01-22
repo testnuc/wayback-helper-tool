@@ -6,6 +6,7 @@ import { ContentTypeButtons } from "@/components/ContentTypeButtons";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface WaybackResult {
   timestamp: string;
@@ -140,34 +141,45 @@ const Index = () => {
     : results;
 
   return (
-    <div className="min-h-screen bg-terminal-bg p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        <h1 className="text-3xl font-bold text-terminal-text mb-8">
-          Wayback Machine URL Analyzer
-        </h1>
-        
-        <UrlInput onFetch={fetchWaybackUrls} isLoading={isLoading} />
-        
-        {isLoading && (
-          <div className="space-y-2">
-            <Progress value={progress} className="w-full" />
-            <p className="text-sm text-terminal-text">Processing domain... {progress}%</p>
-          </div>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold">
+              Wayback Machine URL Analyzer
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <UrlInput onFetch={fetchWaybackUrls} isLoading={isLoading} />
+            
+            {isLoading && (
+              <div className="space-y-2">
+                <Progress value={progress} className="w-full" />
+                <p className="text-sm text-muted-foreground">
+                  Processing domain... {progress}%
+                </p>
+              </div>
+            )}
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
         {results.length > 0 && (
-          <ContentTypeButtons
-            counts={getCounts()}
-            onFilter={setActiveFilter}
-            activeFilter={activeFilter}
-          />
+          <Card>
+            <CardContent className="pt-6">
+              <ContentTypeButtons
+                counts={getCounts()}
+                onFilter={setActiveFilter}
+                activeFilter={activeFilter}
+              />
+            </CardContent>
+          </Card>
         )}
         
         <Terminal logs={filteredResults.map(({ timestamp, status, url }) => ({
