@@ -16,38 +16,49 @@ const Index = () => {
   const [results, setResults] = useState<WaybackResult[]>([]);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
-  const fetchWaybackUrls = async (url: string) => {
+  const fetchWaybackUrls = async (domain: string) => {
     setIsLoading(true);
     try {
-      // In a real implementation, we would call the Wayback Machine API
-      // For demo purposes, we'll simulate some results
-      const mockResults: WaybackResult[] = [
-        {
-          timestamp: "2023-01-01 12:00:00",
-          status: 200,
-          url: `${url}/script.js`,
-          contentType: "js"
-        },
-        {
-          timestamp: "2023-01-02 12:00:00",
-          status: 301,
-          url: `${url}/data.json`,
-          contentType: "json"
-        },
-        {
-          timestamp: "2023-01-03 12:00:00",
-          status: 404,
-          url: `${url}/image.png`,
-          contentType: "images"
-        },
-        // Add more mock results as needed
-      ];
+      const response = await fetch(
+        `http://web.archive.org/cdx/search/cdx?url=${domain}/*&output=json&collapse=urlkey`
+      );
       
-      setResults(mockResults);
+      if (!response.ok) {
+        throw new Error('Failed to fetch data from Wayback Machine');
+      }
+
+      const data = await response.json();
+      
+      // Skip the first row as it contains column headers
+      const waybackResults = data.slice(1).map((item: any) => {
+        // CDX API returns: [urlkey, timestamp, original, mimetype, statuscode, digest, length]
+        const [, timestamp, url, mimetype, statuscode] = item;
+        
+        // Determine content type based on mimetype
+        let contentType = "others";
+        if (mimetype.includes("javascript")) contentType = "js";
+        else if (mimetype.includes("json")) contentType = "json";
+        else if (mimetype.includes("text")) contentType = "text";
+        else if (mimetype.includes("image")) contentType = "images";
+        else if (mimetype.includes("video")) contentType = "videos";
+        else if (mimetype.includes("pdf")) contentType = "pdfs";
+
+        return {
+          timestamp: new Date(timestamp.replace(
+            /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
+            '$1-$2-$3 $4:$5:$6'
+          )).toLocaleString(),
+          status: parseInt(statuscode),
+          url,
+          contentType
+        };
+      });
+      
+      setResults(waybackResults);
       toast.success("URLs fetched successfully!");
     } catch (error) {
-      toast.error("Failed to fetch URLs");
-      console.error(error);
+      console.error('Error fetching data:', error);
+      toast.error("Failed to fetch URLs from Wayback Machine");
     } finally {
       setIsLoading(false);
     }
