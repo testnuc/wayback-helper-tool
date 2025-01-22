@@ -47,41 +47,44 @@ const Index = () => {
     try {
       setProgress(20);
       
-      // Clean and encode the domain
-      const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const encodedDomain = encodeURIComponent(cleanDomain);
+      // Clean the domain - remove protocol and trailing slashes
+      const cleanDomain = domain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
       
-      // Construct and encode the Wayback Machine URL
-      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodedDomain}/*&output=json&collapse=urlkey`;
-      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl)}`;
+      // Construct the Wayback Machine API URL with proper encoding
+      const waybackUrl = new URL('https://web.archive.org/cdx/search/cdx');
+      waybackUrl.searchParams.append('url', `${cleanDomain}/*`);
+      waybackUrl.searchParams.append('output', 'json');
+      waybackUrl.searchParams.append('collapse', 'urlkey');
+      
+      // Construct the proxy URL
+      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl.toString())}`;
       
       setProgress(40);
       
-      console.log('Fetching URL:', proxyUrl); // Debug log
+      console.log('Fetching URL:', proxyUrl);
       
-      const response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
+      const response = await fetch(proxyUrl);
       
       setProgress(60);
       
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Response error:', errorText);
-        throw new Error(`Failed to fetch data: ${errorText}`);
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
       }
 
       const text = await response.text();
-      console.log('Response text:', text); // Debug log
+      console.log('Response text:', text);
+      
+      if (!text.trim()) {
+        throw new Error('Empty response received from server');
+      }
       
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
-        console.error('JSON Parse Error:', text);
+        console.error('JSON Parse Error:', e);
         throw new Error('Invalid JSON response from server');
       }
 
