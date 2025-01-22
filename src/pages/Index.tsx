@@ -45,10 +45,14 @@ const Index = () => {
     
     try {
       setProgress(20);
-      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&collapse=urlkey`;
+      
+      // Properly encode each component of the URL
+      const encodedDomain = encodeURIComponent(domain);
+      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodedDomain}/*&output=json&collapse=urlkey`;
+      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl)}`;
       
       setProgress(40);
-      const response = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl)}`, {
+      const response = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
