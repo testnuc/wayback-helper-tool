@@ -15,9 +15,10 @@ interface WaybackResult {
   contentType: string;
 }
 
-const MAX_RETRIES = 5; // Increased from 3
+const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 10000;
+const CHUNK_SIZE = 50; // Process results in chunks of 50
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -64,29 +65,43 @@ const Index = () => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const processWaybackData = (data: string): WaybackResult[] => {
+  const processWaybackData = async (data: string): Promise<WaybackResult[]> => {
     if (!data || data.trim() === '') {
       throw new Error('No archived URLs found for this domain');
     }
 
-    return data.split('\n')
-      .filter(line => line.trim() !== '')
-      .map(url => {
-        return {
-          timestamp: new Date().toLocaleString(),
-          status: 200,
-          url: url.trim(),
-          contentType: getContentType(url.trim())
-        };
-      });
+    const lines = data.split('\n').filter(line => line.trim() !== '');
+    const totalLines = lines.length;
+    const processedResults: WaybackResult[] = [];
+
+    // Process data in chunks to avoid UI freezing
+    for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
+      const chunk = lines.slice(i, i + CHUNK_SIZE);
+      const chunkResults = chunk.map(url => ({
+        timestamp: new Date().toLocaleString(),
+        status: 200,
+        url: url.trim(),
+        contentType: getContentType(url.trim())
+      }));
+
+      processedResults.push(...chunkResults);
+      
+      // Update progress based on processed chunks
+      const currentProgress = Math.min(80 + (i / totalLines) * 20, 100);
+      setProgress(currentProgress);
+      
+      // Allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    return processedResults;
   };
 
   const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased timeout to 60 seconds
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased timeout to 120 seconds for large datasets
 
-      // Try different CORS proxies
       const proxyUrls = [
         `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         `https://cors-anywhere.herokuapp.com/${url}`,
@@ -108,6 +123,12 @@ const Index = () => {
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Check if response is too large (over 50MB)
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+        throw new Error('Response too large. Please try a more specific domain.');
       }
 
       return response;
@@ -149,7 +170,7 @@ const Index = () => {
         .replace(/^https?:\/\//, '')
         .replace(/\/+$/, '');
       
-      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey`;
+      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey&limit=50000`; // Added limit parameter
       
       setProgress(40);
       
@@ -166,9 +187,7 @@ const Index = () => {
         throw new Error('No archived data found for this domain');
       }
 
-      setProgress(80);
-      
-      const waybackResults = processWaybackData(text);
+      const waybackResults = await processWaybackData(text);
       console.log(`Successfully processed ${waybackResults.length} URLs`);
       
       setProgress(100);
@@ -180,7 +199,9 @@ const Index = () => {
       let errorMessage = "Failed to fetch URLs from Wayback Machine. Please try again later.";
       
       if (error instanceof Error) {
-        if (error.message.includes('timed out')) {
+        if (error.message.includes('too large')) {
+          errorMessage = "The response is too large. Please try a more specific domain or date range.";
+        } else if (error.message.includes('timed out')) {
           errorMessage = "The request timed out. Please try again with a different domain or later.";
         } else if (error.message.includes('HTTP error')) {
           errorMessage = "The Wayback Machine service is currently unavailable. Please try again in a few minutes.";
