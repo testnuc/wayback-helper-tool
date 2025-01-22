@@ -38,6 +38,40 @@ const Index = () => {
     }
   };
 
+  const processWaybackData = (data: any[]): WaybackResult[] => {
+    if (!Array.isArray(data) || data.length <= 1) {
+      throw new Error('No archived URLs found for this domain');
+    }
+
+    // Skip the header row (first item) and process the rest
+    return data.slice(1).map((item: any) => {
+      if (!Array.isArray(item) || item.length < 4) {
+        console.error('Invalid item structure:', item);
+        return null;
+      }
+
+      const [timestamp, url, mimetype, statuscode] = item;
+      
+      let contentType = "others";
+      if (mimetype.includes("javascript")) contentType = "js";
+      else if (mimetype.includes("json")) contentType = "json";
+      else if (mimetype.includes("text")) contentType = "text";
+      else if (mimetype.includes("image")) contentType = "images";
+      else if (mimetype.includes("video")) contentType = "videos";
+      else if (mimetype.includes("pdf")) contentType = "pdfs";
+
+      return {
+        timestamp: new Date(timestamp.replace(
+          /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
+          '$1-$2-$3 $4:$5:$6'
+        )).toLocaleString(),
+        status: parseInt(statuscode),
+        url,
+        contentType
+      };
+    }).filter(Boolean);
+  };
+
   const fetchWaybackUrls = async (domain: string) => {
     setIsLoading(true);
     setError(null);
@@ -75,7 +109,7 @@ const Index = () => {
       }
 
       const text = await response.text();
-      console.log('Response text:', text);
+      console.log('Response size:', text.length, 'bytes');
       
       if (!text || text.trim() === '') {
         throw new Error('No archived data found for this domain');
@@ -84,9 +118,6 @@ const Index = () => {
       let data;
       try {
         data = JSON.parse(text);
-        if (!Array.isArray(data) || data.length === 0) {
-          throw new Error('No archived URLs found for this domain');
-        }
       } catch (e) {
         console.error('JSON Parse Error:', e);
         throw new Error('Invalid response format from server');
@@ -94,32 +125,8 @@ const Index = () => {
 
       setProgress(80);
       
-      const waybackResults = data.slice(1).map((item: any) => {
-        if (!Array.isArray(item) || item.length < 4) {
-          console.error('Invalid item structure:', item);
-          return null;
-        }
-
-        const [timestamp, url, mimetype, statuscode] = item;
-        
-        let contentType = "others";
-        if (mimetype.includes("javascript")) contentType = "js";
-        else if (mimetype.includes("json")) contentType = "json";
-        else if (mimetype.includes("text")) contentType = "text";
-        else if (mimetype.includes("image")) contentType = "images";
-        else if (mimetype.includes("video")) contentType = "videos";
-        else if (mimetype.includes("pdf")) contentType = "pdfs";
-
-        return {
-          timestamp: new Date(timestamp.replace(
-            /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
-            '$1-$2-$3 $4:$5:$6'
-          )).toLocaleString(),
-          status: parseInt(statuscode),
-          url,
-          contentType
-        };
-      }).filter(Boolean);
+      const waybackResults = processWaybackData(data);
+      console.log(`Successfully processed ${waybackResults.length} URLs`);
       
       setProgress(100);
       setResults(waybackResults);
