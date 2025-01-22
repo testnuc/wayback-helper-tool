@@ -7,56 +7,8 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface WaybackResult {
-  timestamp: string;
-  status: number;
-  url: string;
-  contentType: string;
-}
-
-const MAX_RETRIES = 5;
-const INITIAL_RETRY_DELAY = 1000;
-const MAX_RETRY_DELAY = 10000;
-const CHUNK_SIZE = 50; // Process results in chunks of 50
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-const getContentType = (url: string): string => {
-  const extension = url.split('.').pop()?.toLowerCase() || '';
-  
-  // JavaScript files
-  if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
-    return 'js';
-  }
-  
-  // JSON files
-  if (extension === 'json') {
-    return 'json';
-  }
-  
-  // Text files
-  if (['txt', 'md', 'csv', 'html', 'xml', 'css', 'scss', 'less'].includes(extension)) {
-    return 'text';
-  }
-  
-  // Image files
-  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico', 'bmp'].includes(extension)) {
-    return 'images';
-  }
-  
-  // Video files
-  if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv'].includes(extension)) {
-    return 'videos';
-  }
-  
-  // PDF files
-  if (extension === 'pdf') {
-    return 'pdfs';
-  }
-  
-  return 'others';
-};
+import { WaybackResult } from "../types/wayback";
+import { processWaybackData, fetchWithRetry } from "../utils/waybackMachine";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -64,94 +16,6 @@ const Index = () => {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-
-  const processWaybackData = async (data: string): Promise<WaybackResult[]> => {
-    if (!data || data.trim() === '') {
-      throw new Error('No archived URLs found for this domain');
-    }
-
-    const lines = data.split('\n').filter(line => line.trim() !== '');
-    const totalLines = lines.length;
-    const processedResults: WaybackResult[] = [];
-
-    // Process data in chunks to avoid UI freezing
-    for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
-      const chunk = lines.slice(i, i + CHUNK_SIZE);
-      const chunkResults = chunk.map(url => ({
-        timestamp: new Date().toLocaleString(),
-        status: 200,
-        url: url.trim(),
-        contentType: getContentType(url.trim())
-      }));
-
-      processedResults.push(...chunkResults);
-      
-      // Update progress based on processed chunks
-      const currentProgress = Math.min(80 + (i / totalLines) * 20, 100);
-      setProgress(currentProgress);
-      
-      // Allow UI to update
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
-
-    return processedResults;
-  };
-
-  const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased timeout to 120 seconds for large datasets
-
-      const proxyUrls = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        `https://cors-anywhere.herokuapp.com/${url}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-      ];
-
-      const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
-      console.log(`Attempt ${retryCount + 1}, using proxy: ${proxyUrl}`);
-
-      const response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/plain',
-        },
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      // Check if response is too large (over 50MB)
-      const contentLength = response.headers.get('content-length');
-      if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
-        throw new Error('Response too large. Please try a more specific domain.');
-      }
-
-      return response;
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          console.error('Request timed out');
-          throw new Error('Request timed out. The server is taking too long to respond.');
-        }
-
-        if (retryCount < MAX_RETRIES) {
-          const delay = Math.min(
-            INITIAL_RETRY_DELAY * Math.pow(2, retryCount),
-            MAX_RETRY_DELAY
-          );
-          console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}, waiting ${delay}ms`);
-          await sleep(delay);
-          return fetchWithRetry(url, retryCount + 1);
-        }
-      }
-      throw error;
-    }
-  };
 
   const fetchWaybackUrls = async (domain: string) => {
     setIsLoading(true);
@@ -170,7 +34,7 @@ const Index = () => {
         .replace(/^https?:\/\//, '')
         .replace(/\/+$/, '');
       
-      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey&limit=50000`; // Added limit parameter
+      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey&limit=50000`;
       
       setProgress(40);
       
@@ -187,7 +51,7 @@ const Index = () => {
         throw new Error('No archived data found for this domain');
       }
 
-      const waybackResults = await processWaybackData(text);
+      const waybackResults = await processWaybackData(text, setProgress);
       console.log(`Successfully processed ${waybackResults.length} URLs`);
       
       setProgress(100);
