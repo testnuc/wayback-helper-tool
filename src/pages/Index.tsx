@@ -15,6 +15,11 @@ interface WaybackResult {
   contentType: string;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<WaybackResult[]>([]);
@@ -27,18 +32,40 @@ const Index = () => {
       throw new Error('No archived URLs found for this domain');
     }
 
-    // Split the text response into lines and process each line
     return data.split('\n')
       .filter(line => line.trim() !== '')
       .map(url => {
-        // Since we're only getting URLs, we'll set some default values
         return {
-          timestamp: new Date().toLocaleString(), // Current time as default
-          status: 200, // Default status
+          timestamp: new Date().toLocaleString(),
+          status: 200,
           url: url.trim(),
-          contentType: "others" // Default content type
+          contentType: "others"
         };
       });
+  };
+
+  const fetchWithRetry = async (url: string, retries = MAX_RETRIES): Promise<Response> => {
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/plain',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return response;
+    } catch (error) {
+      if (retries > 0) {
+        console.log(`Retry attempt ${MAX_RETRIES - retries + 1} of ${MAX_RETRIES}`);
+        await sleep(RETRY_DELAY);
+        return fetchWithRetry(url, retries - 1);
+      }
+      throw error;
+    }
   };
 
   const fetchWaybackUrls = async (domain: string) => {
@@ -54,36 +81,21 @@ const Index = () => {
         throw new Error('Please enter a valid domain');
       }
       
-      // Clean the domain - remove protocol and trailing slashes
       const cleanDomain = domain.trim()
         .replace(/^https?:\/\//, '')
         .replace(/\/+$/, '');
       
-      // Construct the Wayback Machine API URL with the exact format
       const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey`;
-      
-      // Use a CORS proxy
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(waybackUrl)}`;
       
       setProgress(40);
       
       console.log('Fetching URL:', proxyUrl);
       
-      const response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'text/plain',
-        },
-      });
+      const response = await fetchWithRetry(proxyUrl);
       
       setProgress(60);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        throw new Error(`Server error: ${response.status} ${response.statusText}`);
-      }
-
       const text = await response.text();
       console.log('Response size:', text.length, 'bytes');
       
@@ -102,7 +114,18 @@ const Index = () => {
       
     } catch (error) {
       console.error('Error fetching data:', error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to fetch URLs from Wayback Machine. Please try again later.";
+      let errorMessage = "Failed to fetch URLs from Wayback Machine. Please try again later.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = "Network error: Please check your internet connection and try again.";
+        } else if (error.message.includes('HTTP error')) {
+          errorMessage = "Server error: The Wayback Machine service is currently unavailable. Please try again later.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
