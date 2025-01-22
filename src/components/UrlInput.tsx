@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { toast } from "sonner";
 
 interface UrlInputProps {
   onFetch: (url: string) => void;
@@ -13,16 +14,23 @@ export const UrlInput = ({ onFetch, isLoading }: UrlInputProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (url.trim()) {
-      onFetch(url.trim());
+    
+    // Basic domain.com validation
+    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+    
+    if (!domainRegex.test(url.trim())) {
+      toast.error("Please enter a valid domain (e.g., domain.com)");
+      return;
     }
+
+    onFetch(url.trim());
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex w-full max-w-3xl gap-2">
       <Input
-        type="url"
-        placeholder="Enter URL to analyze..."
+        type="text"
+        placeholder="Enter domain (e.g., domain.com)..."
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         className="font-mono bg-terminal-bg text-terminal-text"
