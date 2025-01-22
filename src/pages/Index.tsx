@@ -3,6 +3,9 @@ import { toast } from "sonner";
 import { UrlInput } from "@/components/UrlInput";
 import { Terminal } from "@/components/Terminal";
 import { ContentTypeButtons } from "@/components/ContentTypeButtons";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface WaybackResult {
   timestamp: string;
@@ -15,6 +18,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<WaybackResult[]>([]);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const verifyServerIntegrity = async (domain: string) => {
     try {
@@ -35,10 +40,17 @@ const Index = () => {
 
   const fetchWaybackUrls = async (domain: string) => {
     setIsLoading(true);
+    setError(null);
+    setProgress(0);
+    setResults([]);
+    
     try {
+      setProgress(20);
       // Using cors-anywhere as a proxy to bypass CORS
       const proxyUrl = 'https://api.allorigins.win/raw?url=';
       const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&collapse=urlkey`;
+      
+      setProgress(40);
       const response = await fetch(`${proxyUrl}${encodeURIComponent(waybackUrl)}`, {
         method: 'GET',
         headers: {
@@ -46,14 +58,18 @@ const Index = () => {
         }
       });
       
+      setProgress(60);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      setProgress(80);
       
       if (!Array.isArray(data) || data.length === 0) {
         toast.error("No archived URLs found for this domain");
+        setError("No archived URLs found for this domain");
         return;
       }
       
@@ -82,6 +98,7 @@ const Index = () => {
         };
       });
       
+      setProgress(100);
       setResults(waybackResults);
       toast.success(`Found ${waybackResults.length} archived URLs!`);
       
@@ -89,6 +106,7 @@ const Index = () => {
       await verifyServerIntegrity(domain);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setError("Failed to fetch URLs from Wayback Machine. Please try again later.");
       toast.error("Failed to fetch URLs from Wayback Machine. Please try again later.");
     } finally {
       setIsLoading(false);
@@ -117,6 +135,20 @@ const Index = () => {
         </h1>
         
         <UrlInput onFetch={fetchWaybackUrls} isLoading={isLoading} />
+        
+        {isLoading && (
+          <div className="space-y-2">
+            <Progress value={progress} className="w-full" />
+            <p className="text-sm text-terminal-text">Processing domain... {progress}%</p>
+          </div>
+        )}
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         
         {results.length > 0 && (
           <ContentTypeButtons
