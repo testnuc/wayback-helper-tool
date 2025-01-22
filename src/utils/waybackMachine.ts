@@ -8,7 +8,24 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const getContentType = (url: string): string => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
+  const filename = url.split('/').pop()?.toLowerCase() || '';
   
+  // Backup and Logs
+  if (['log', 'bak', 'backup'].includes(extension) || filename.endsWith('config.old')) {
+    return 'backup';
+  }
+  
+  // Certificate and Security Files
+  if (['crt', 'pem', 'key', 'pub'].includes(extension)) {
+    return 'security';
+  }
+  
+  // Configuration Files
+  if (['conf', 'config', 'htpasswd', 'htaccess', 'env', 'inc'].includes(extension)) {
+    return 'config';
+  }
+  
+  // Existing file types
   if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
     return 'js';
   }

@@ -6,7 +6,10 @@ import {
   Image, 
   Video, 
   Files,
-  FileSpreadsheet 
+  FileSpreadsheet,
+  Archive,
+  Shield,
+  Settings
 } from "lucide-react";
 
 interface ContentTypeButtonsProps {
@@ -18,6 +21,9 @@ interface ContentTypeButtonsProps {
     videos: number;
     pdfs: number;
     excel: number;
+    backup: number;
+    security: number;
+    config: number;
     others: number;
   };
   onFilter: (type: string) => void;
@@ -37,6 +43,9 @@ export const ContentTypeButtons = ({
     { type: "videos", icon: Video, label: "Videos", count: counts.videos },
     { type: "pdfs", icon: FileText, label: "PDFs", count: counts.pdfs },
     { type: "excel", icon: FileSpreadsheet, label: "Excel", count: counts.excel },
+    { type: "backup", icon: Archive, label: "Backup & Logs", count: counts.backup },
+    { type: "security", icon: Shield, label: "Security", count: counts.security },
+    { type: "config", icon: Settings, label: "Config", count: counts.config },
     { type: "others", icon: Files, label: "Others", count: counts.others },
   ];
 
