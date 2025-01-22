@@ -100,7 +100,6 @@ const Index = () => {
       setResults(waybackResults);
       toast.success(`Found ${waybackResults.length} archived URLs!`);
       
-      await verifyServerIntegrity(domain);
     } catch (error) {
       console.error('Error fetching data:', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch URLs from Wayback Machine. Please try again later.";
