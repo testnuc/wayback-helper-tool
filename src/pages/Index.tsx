@@ -37,23 +37,6 @@ const Index = () => {
     }
   };
 
-  const fetchWithTimeout = async (resource: string, options: RequestInit & { timeout?: number } = {}) => {
-    const { timeout = 8000 } = options;
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-      const response = await fetch(resource, {
-        ...options,
-        signal: controller.signal
-      });
-      clearTimeout(id);
-      return response;
-    } catch (error) {
-      clearTimeout(id);
-      throw error;
-    }
-  };
-
   const fetchWaybackUrls = async (domain: string) => {
     setIsLoading(true);
     setError(null);
@@ -62,17 +45,14 @@ const Index = () => {
     
     try {
       setProgress(20);
-      const proxyUrl = 'https://cors.sh/';
       const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&collapse=urlkey`;
       
       setProgress(40);
-      const response = await fetchWithTimeout(`${proxyUrl}${waybackUrl}`, {
+      const response = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl)}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'x-cors-api-key': 'temp_f0e14d0e3c4e2d8c5c6e7c1a7c2f8e9d',
         },
-        timeout: 8000
       });
       
       setProgress(60);
@@ -90,7 +70,6 @@ const Index = () => {
         return;
       }
       
-      // Skip the first row as it contains column headers
       const waybackResults = data.slice(1).map((item: any) => {
         const [, timestamp, url, mimetype, statuscode] = item;
         
