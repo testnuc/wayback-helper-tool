@@ -34,14 +34,13 @@ const Index = () => {
         .replace(/^https?:\/\//, '')
         .replace(/\/+$/, '');
       
-      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey&limit=50000`;
+      // Add limit parameter to prevent too large responses
+      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey&limit=10000`;
       
       setProgress(40);
-      
       console.log('Fetching Wayback Machine data for domain:', cleanDomain);
       
       const response = await fetchWithRetry(waybackUrl);
-      
       setProgress(60);
       
       const text = await response.text();
@@ -63,15 +62,7 @@ const Index = () => {
       let errorMessage = "Failed to fetch URLs from Wayback Machine. Please try again later.";
       
       if (error instanceof Error) {
-        if (error.message.includes('too large')) {
-          errorMessage = "The response is too large. Please try a more specific domain or date range.";
-        } else if (error.message.includes('timed out')) {
-          errorMessage = "The request timed out. Please try again with a different domain or later.";
-        } else if (error.message.includes('HTTP error')) {
-          errorMessage = "The Wayback Machine service is currently unavailable. Please try again in a few minutes.";
-        } else {
-          errorMessage = error.message;
-        }
+        errorMessage = error.message;
       }
       
       setError(errorMessage);
@@ -80,16 +71,6 @@ const Index = () => {
       setIsLoading(false);
     }
   };
-
-  const getCounts = () => ({
-    js: results.filter(r => r.contentType === "js").length,
-    json: results.filter(r => r.contentType === "json").length,
-    text: results.filter(r => r.contentType === "text").length,
-    images: results.filter(r => r.contentType === "images").length,
-    videos: results.filter(r => r.contentType === "videos").length,
-    pdfs: results.filter(r => r.contentType === "pdfs").length,
-    others: results.filter(r => r.contentType === "others").length,
-  });
 
   const filteredResults = activeFilter
     ? results.filter(r => r.contentType === activeFilter)
@@ -129,7 +110,15 @@ const Index = () => {
           <Card>
             <CardContent className="pt-6">
               <ContentTypeButtons
-                counts={getCounts()}
+                counts={{
+                  js: results.filter(r => r.contentType === "js").length,
+                  json: results.filter(r => r.contentType === "json").length,
+                  text: results.filter(r => r.contentType === "text").length,
+                  images: results.filter(r => r.contentType === "images").length,
+                  videos: results.filter(r => r.contentType === "videos").length,
+                  pdfs: results.filter(r => r.contentType === "pdfs").length,
+                  others: results.filter(r => r.contentType === "others").length,
+                }}
                 onFilter={setActiveFilter}
                 activeFilter={activeFilter}
               />

@@ -1,9 +1,8 @@
 import { WaybackResult } from '../types/wayback';
 
-const MAX_RETRIES = 5;
-const INITIAL_RETRY_DELAY = 1000;
-const MAX_RETRY_DELAY = 10000;
-const CHUNK_SIZE = 50;
+const MAX_RETRIES = 3;
+const CHUNK_SIZE = 1000;
+const MAX_RESPONSE_SIZE = 50 * 1024 * 1024; // 50MB limit
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -43,6 +42,7 @@ export const processWaybackData = async (
   const totalLines = lines.length;
   const processedResults: WaybackResult[] = [];
 
+  // Process in chunks to prevent UI freezing
   for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
     const chunk = lines.slice(i, i + CHUNK_SIZE);
     const chunkResults = chunk.map(url => ({
@@ -53,25 +53,25 @@ export const processWaybackData = async (
     }));
 
     processedResults.push(...chunkResults);
-    const currentProgress = Math.min(80 + (i / totalLines) * 20, 100);
-    onProgress(currentProgress);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    const progress = Math.min(80 + (i / totalLines) * 20, 100);
+    onProgress(progress);
+    await sleep(0); // Allow UI to update
   }
 
   return processedResults;
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
+  const proxyUrls = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+  ];
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-    const proxyUrls = [
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      `https://cors-anywhere.herokuapp.com/${url}`,
-      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-    ];
-
     const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
     console.log(`Attempt ${retryCount + 1}, using proxy: ${proxyUrl}`);
 
@@ -90,24 +90,24 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
     }
 
     const contentLength = response.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+    if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
       throw new Error('Response too large. Please try a more specific domain.');
     }
 
     return response;
   } catch (error) {
+    clearTimeout(timeoutId);
+
     if (error instanceof Error) {
+      // Handle abort error
       if (error.name === 'AbortError') {
         throw new Error('Request timed out. The server is taking too long to respond.');
       }
 
+      // Retry logic
       if (retryCount < MAX_RETRIES) {
-        const delay = Math.min(
-          INITIAL_RETRY_DELAY * Math.pow(2, retryCount),
-          MAX_RETRY_DELAY
-        );
-        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}, waiting ${delay}ms`);
-        await sleep(delay);
+        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`);
+        await sleep(2000 * (retryCount + 1)); // Exponential backoff
         return fetchWithRetry(url, retryCount + 1);
       }
     }
