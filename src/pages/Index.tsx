@@ -15,8 +15,9 @@ interface WaybackResult {
   contentType: string;
 }
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000; // Increased to 2 seconds
+const MAX_RETRIES = 5; // Increased from 3
+const INITIAL_RETRY_DELAY = 1000;
+const MAX_RETRY_DELAY = 10000;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -80,12 +81,22 @@ const Index = () => {
       });
   };
 
-  const fetchWithRetry = async (url: string, retries = MAX_RETRIES): Promise<Response> => {
+  const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased timeout to 60 seconds
 
-      const response = await fetch(url, {
+      // Try different CORS proxies
+      const proxyUrls = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://cors-anywhere.herokuapp.com/${url}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+      ];
+
+      const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
+      console.log(`Attempt ${retryCount + 1}, using proxy: ${proxyUrl}`);
+
+      const response = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
           'Accept': 'text/plain',
@@ -96,22 +107,26 @@ const Index = () => {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorMessage = `HTTP error! status: ${response.status}`;
-        console.error(errorMessage);
-        throw new Error(errorMessage);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       return response;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.error('Request timed out');
-        throw new Error('Request timed out. The server is taking too long to respond.');
-      }
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.error('Request timed out');
+          throw new Error('Request timed out. The server is taking too long to respond.');
+        }
 
-      if (retries > 0) {
-        console.log(`Retry attempt ${MAX_RETRIES - retries + 1} of ${MAX_RETRIES}`);
-        await sleep(RETRY_DELAY);
-        return fetchWithRetry(url, retries - 1);
+        if (retryCount < MAX_RETRIES) {
+          const delay = Math.min(
+            INITIAL_RETRY_DELAY * Math.pow(2, retryCount),
+            MAX_RETRY_DELAY
+          );
+          console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}, waiting ${delay}ms`);
+          await sleep(delay);
+          return fetchWithRetry(url, retryCount + 1);
+        }
       }
       throw error;
     }
@@ -135,13 +150,12 @@ const Index = () => {
         .replace(/\/+$/, '');
       
       const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey`;
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(waybackUrl)}`;
       
       setProgress(40);
       
-      console.log('Fetching URL:', proxyUrl);
+      console.log('Fetching Wayback Machine data for domain:', cleanDomain);
       
-      const response = await fetchWithRetry(proxyUrl);
+      const response = await fetchWithRetry(waybackUrl);
       
       setProgress(60);
       
@@ -167,7 +181,7 @@ const Index = () => {
       
       if (error instanceof Error) {
         if (error.message.includes('timed out')) {
-          errorMessage = "The request timed out. The Wayback Machine service might be experiencing high load. Please try again later.";
+          errorMessage = "The request timed out. Please try again with a different domain or later.";
         } else if (error.message.includes('HTTP error')) {
           errorMessage = "The Wayback Machine service is currently unavailable. Please try again in a few minutes.";
         } else {
