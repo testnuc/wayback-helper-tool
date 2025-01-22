@@ -3,6 +3,7 @@ import { WaybackResult } from '../types/wayback';
 const MAX_RETRIES = 3;
 const CHUNK_SIZE = 1000;
 const MAX_RESPONSE_SIZE = 50 * 1024 * 1024; // 50MB limit
+const TIMEOUT_MS = 30000; // 30 seconds
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -82,14 +83,18 @@ export const processWaybackData = async (
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
+  // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://cors-anywhere.herokuapp.com/${url}`,
+    `https://proxy.cors.sh/${url}`,
+    `https://cors.bridged.cc/${url}`
   ];
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
@@ -99,6 +104,8 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       method: 'GET',
       headers: {
         'Accept': 'text/plain',
+        'x-requested-with': 'XMLHttpRequest',
+        'origin': window.location.origin
       },
       signal: controller.signal
     });
@@ -106,6 +113,15 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Proxy error (${response.status}):`, errorBody);
+      
+      if (response.status === 403) {
+        throw new Error('Access denied by CORS proxy. Trying another proxy...');
+      }
+      if (response.status === 408 || response.status === 504) {
+        throw new Error('Request timeout. Trying another proxy...');
+      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -124,12 +140,15 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         throw new Error('Request timed out. The server is taking too long to respond.');
       }
 
-      // Retry logic
+      // Retry logic with exponential backoff
       if (retryCount < MAX_RETRIES) {
         console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`);
-        await sleep(2000 * (retryCount + 1)); // Exponential backoff
+        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
+        await sleep(backoffTime);
         return fetchWithRetry(url, retryCount + 1);
       }
+      
+      throw new Error('All CORS proxies failed. Please try again later or use a different domain.');
     }
     throw error;
   }
