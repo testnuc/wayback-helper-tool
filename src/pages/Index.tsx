@@ -61,7 +61,16 @@ const Index = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('JSON Parse Error:', text);
+        throw new Error('Invalid JSON response from server');
+      }
+
       setProgress(80);
       
       if (!Array.isArray(data) || data.length === 0) {
@@ -71,6 +80,11 @@ const Index = () => {
       }
       
       const waybackResults = data.slice(1).map((item: any) => {
+        if (!Array.isArray(item) || item.length < 5) {
+          console.error('Invalid item structure:', item);
+          return null;
+        }
+
         const [, timestamp, url, mimetype, statuscode] = item;
         
         let contentType = "others";
@@ -90,7 +104,7 @@ const Index = () => {
           url,
           contentType
         };
-      });
+      }).filter(Boolean);
       
       setProgress(100);
       setResults(waybackResults);
