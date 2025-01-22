@@ -21,7 +21,7 @@ export const Terminal = ({ logs }: TerminalProps) => {
   };
 
   const sortedLogs = [...logs].sort((a, b) => {
-    return sortOrder === 'asc' ? a.status - b.status : b.status - b.status;
+    return sortOrder === 'asc' ? a.status - b.status : b.status - a.status;
   });
 
   const toggleSort = () => {

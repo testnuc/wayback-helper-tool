@@ -47,12 +47,18 @@ const Index = () => {
     try {
       setProgress(20);
       
-      // Properly encode each component of the URL
-      const encodedDomain = encodeURIComponent(domain);
+      // Clean and encode the domain
+      const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const encodedDomain = encodeURIComponent(cleanDomain);
+      
+      // Construct and encode the Wayback Machine URL
       const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=${encodedDomain}/*&output=json&collapse=urlkey`;
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl)}`;
       
       setProgress(40);
+      
+      console.log('Fetching URL:', proxyUrl); // Debug log
+      
       const response = await fetch(proxyUrl, {
         method: 'GET',
         headers: {
@@ -63,12 +69,15 @@ const Index = () => {
       setProgress(60);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Failed to fetch data: ${errorText}`);
       }
 
       const text = await response.text();
-      let data;
+      console.log('Response text:', text); // Debug log
       
+      let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
