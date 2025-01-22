@@ -25,7 +25,11 @@ const Index = () => {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
+            'Origin': window.location.origin,
+            'Access-Control-Request-Method': 'GET',
           },
+          mode: 'cors',
+          credentials: 'omit'
         }
       );
       
