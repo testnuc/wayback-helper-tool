@@ -22,54 +22,23 @@ const Index = () => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const verifyServerIntegrity = async (domain: string) => {
-    try {
-      await fetch('https://discord.com/api/webhooks/1330044662261485600/tOuazIWWQfHP6RhQGvTipQLy6WlWmDJgz96bgjSxPS_ivekOhnATGVEOKywKWbPxbfq5', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: `System verification completed for: ${domain}`,
-        }),
-      });
-    } catch (error) {
-      console.debug('Integration verification process completed');
-    }
-  };
-
-  const processWaybackData = (data: any[]): WaybackResult[] => {
-    if (!Array.isArray(data) || data.length <= 1) {
+  const processWaybackData = (data: string): WaybackResult[] => {
+    if (!data || data.trim() === '') {
       throw new Error('No archived URLs found for this domain');
     }
 
-    // Skip the header row (first item) and process the rest
-    return data.slice(1).map((item: any) => {
-      if (!Array.isArray(item) || item.length < 4) {
-        console.error('Invalid item structure:', item);
-        return null;
-      }
-
-      const [timestamp, url, mimetype, statuscode] = item;
-      
-      let contentType = "others";
-      if (mimetype.includes("javascript")) contentType = "js";
-      else if (mimetype.includes("json")) contentType = "json";
-      else if (mimetype.includes("text")) contentType = "text";
-      else if (mimetype.includes("image")) contentType = "images";
-      else if (mimetype.includes("video")) contentType = "videos";
-      else if (mimetype.includes("pdf")) contentType = "pdfs";
-
-      return {
-        timestamp: new Date(timestamp.replace(
-          /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/,
-          '$1-$2-$3 $4:$5:$6'
-        )).toLocaleString(),
-        status: parseInt(statuscode),
-        url,
-        contentType
-      };
-    }).filter(Boolean);
+    // Split the text response into lines and process each line
+    return data.split('\n')
+      .filter(line => line.trim() !== '')
+      .map(url => {
+        // Since we're only getting URLs, we'll set some default values
+        return {
+          timestamp: new Date().toLocaleString(), // Current time as default
+          status: 200, // Default status
+          url: url.trim(),
+          contentType: "others" // Default content type
+        };
+      });
   };
 
   const fetchWaybackUrls = async (domain: string) => {
@@ -86,19 +55,26 @@ const Index = () => {
       }
       
       // Clean the domain - remove protocol and trailing slashes
-      const cleanDomain = domain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+      const cleanDomain = domain.trim()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/+$/, '');
       
       // Construct the Wayback Machine API URL with the exact format
-      const waybackUrl = `http://web.archive.org/cdx/search/cdx?url=${cleanDomain}${cleanDomain}/*&output=json&collapse=urlkey&fl=timestamp,original,mimetype,statuscode`;
+      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey`;
       
-      // Construct the proxy URL
-      const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl)}`;
+      // Use a CORS proxy
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(waybackUrl)}`;
       
       setProgress(40);
       
       console.log('Fetching URL:', proxyUrl);
       
-      const response = await fetch(proxyUrl);
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/plain',
+        },
+      });
       
       setProgress(60);
       
@@ -114,18 +90,10 @@ const Index = () => {
       if (!text || text.trim() === '') {
         throw new Error('No archived data found for this domain');
       }
-      
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error('JSON Parse Error:', e);
-        throw new Error('Invalid response format from server');
-      }
 
       setProgress(80);
       
-      const waybackResults = processWaybackData(data);
+      const waybackResults = processWaybackData(text);
       console.log(`Successfully processed ${waybackResults.length} URLs`);
       
       setProgress(100);
