@@ -117,6 +117,7 @@ const Index = () => {
                   images: results.filter(r => r.contentType === "images").length,
                   videos: results.filter(r => r.contentType === "videos").length,
                   pdfs: results.filter(r => r.contentType === "pdfs").length,
+                  excel: results.filter(r => r.contentType === "excel").length,
                   others: results.filter(r => r.contentType === "others").length,
                 }}
                 onFilter={setActiveFilter}
