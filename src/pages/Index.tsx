@@ -47,14 +47,19 @@ const Index = () => {
     try {
       setProgress(20);
       
+      if (!domain.trim()) {
+        throw new Error('Please enter a valid domain');
+      }
+      
       // Clean the domain - remove protocol and trailing slashes
       const cleanDomain = domain.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
       
       // Construct the Wayback Machine API URL with proper encoding
       const waybackUrl = new URL('https://web.archive.org/cdx/search/cdx');
-      waybackUrl.searchParams.append('url', `${cleanDomain}/*`);
+      waybackUrl.searchParams.append('url', cleanDomain);
       waybackUrl.searchParams.append('output', 'json');
       waybackUrl.searchParams.append('collapse', 'urlkey');
+      waybackUrl.searchParams.append('fl', 'timestamp,original,mimetype,statuscode');
       
       // Construct the proxy URL
       const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(waybackUrl.toString())}`;
@@ -70,39 +75,36 @@ const Index = () => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Response error:', errorText);
-        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
 
       const text = await response.text();
       console.log('Response text:', text);
       
-      if (!text.trim()) {
-        throw new Error('Empty response received from server');
+      if (!text || text.trim() === '') {
+        throw new Error('No archived data found for this domain');
       }
       
       let data;
       try {
         data = JSON.parse(text);
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error('No archived URLs found for this domain');
+        }
       } catch (e) {
         console.error('JSON Parse Error:', e);
-        throw new Error('Invalid JSON response from server');
+        throw new Error('Invalid response format from server');
       }
 
       setProgress(80);
       
-      if (!Array.isArray(data) || data.length === 0) {
-        toast.error("No archived URLs found for this domain");
-        setError("No archived URLs found for this domain");
-        return;
-      }
-      
       const waybackResults = data.slice(1).map((item: any) => {
-        if (!Array.isArray(item) || item.length < 5) {
+        if (!Array.isArray(item) || item.length < 4) {
           console.error('Invalid item structure:', item);
           return null;
         }
 
-        const [, timestamp, url, mimetype, statuscode] = item;
+        const [timestamp, url, mimetype, statuscode] = item;
         
         let contentType = "others";
         if (mimetype.includes("javascript")) contentType = "js";
