@@ -16,9 +16,45 @@ interface WaybackResult {
 }
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+const RETRY_DELAY = 1000;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const getContentType = (url: string): string => {
+  const extension = url.split('.').pop()?.toLowerCase() || '';
+  
+  // JavaScript files
+  if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
+    return 'js';
+  }
+  
+  // JSON files
+  if (extension === 'json') {
+    return 'json';
+  }
+  
+  // Text files
+  if (['txt', 'md', 'csv', 'html', 'xml', 'css', 'scss', 'less'].includes(extension)) {
+    return 'text';
+  }
+  
+  // Image files
+  if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico', 'bmp'].includes(extension)) {
+    return 'images';
+  }
+  
+  // Video files
+  if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'wmv'].includes(extension)) {
+    return 'videos';
+  }
+  
+  // PDF files
+  if (extension === 'pdf') {
+    return 'pdfs';
+  }
+  
+  return 'others';
+};
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +75,7 @@ const Index = () => {
           timestamp: new Date().toLocaleString(),
           status: 200,
           url: url.trim(),
-          contentType: "others"
+          contentType: getContentType(url.trim())
         };
       });
   };
@@ -140,7 +176,7 @@ const Index = () => {
     images: results.filter(r => r.contentType === "images").length,
     videos: results.filter(r => r.contentType === "videos").length,
     pdfs: results.filter(r => r.contentType === "pdfs").length,
-    others: results.filter(r => !["js", "json", "text", "images", "videos", "pdfs"].includes(r.contentType)).length,
+    others: results.filter(r => r.contentType === "others").length,
   });
 
   const filteredResults = activeFilter
