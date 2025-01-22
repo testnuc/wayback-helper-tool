@@ -20,14 +20,25 @@ const Index = () => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `http://web.archive.org/cdx/search/cdx?url=${domain}/*&output=json&collapse=urlkey`
+        `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&collapse=urlkey`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
       );
       
       if (!response.ok) {
-        throw new Error('Failed to fetch data from Wayback Machine');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      if (!Array.isArray(data) || data.length === 0) {
+        toast.error("No archived URLs found for this domain");
+        return;
+      }
       
       // Skip the first row as it contains column headers
       const waybackResults = data.slice(1).map((item: any) => {
@@ -55,10 +66,10 @@ const Index = () => {
       });
       
       setResults(waybackResults);
-      toast.success("URLs fetched successfully!");
+      toast.success(`Found ${waybackResults.length} archived URLs!`);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error("Failed to fetch URLs from Wayback Machine");
+      toast.error("Failed to fetch URLs from Wayback Machine. Please try again later.");
     } finally {
       setIsLoading(false);
     }
