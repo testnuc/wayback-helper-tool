@@ -107,13 +107,13 @@ export const getContentType = (url: string): string => {
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
-  // Updated list of more reliable CORS proxies, removed corsproxy.io
+  // Updated list of more reliable CORS proxies
   const proxyUrls = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://corsproxy.org/?${encodeURIComponent(url)}`,
-    `https://cors.eu.org/${url}`,
+    `https://api.codetabs.com/v1/proxy?quest=${url}`,
     `https://thingproxy.freeboard.io/fetch/${url}`,
-    `https://api.codetabs.com/v1/proxy?quest=${url}`
+    `https://proxy.cors.sh/${url}`,
+    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
+    `https://crossorigin.me/${url}`
   ];
 
   const controller = new AbortController();
@@ -131,7 +131,8 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         'Connection': 'keep-alive',
         'User-Agent': 'Mozilla/5.0 (compatible; WaybackArchiveBot/1.0)',
         'Origin': window.location.origin,
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-Requested-With': 'XMLHttpRequest',
+        'x-cors-grida-api-key': 'xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx'
       },
       mode: 'cors',
       credentials: 'omit',
@@ -155,11 +156,6 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         throw new Error('Server error. Trying another proxy...');
       }
       throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const contentLength = response.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
-      throw new Error('Response too large. Please try a more specific domain.');
     }
 
     return response;
