@@ -8,23 +8,20 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: corsHeaders,
-      status: 204
-    });
+    return new Response(null, { headers: corsHeaders, status: 204 });
   }
 
   try {
-    const { domain, offset } = await req.json();
+    const { domain } = await req.json();
 
     if (!domain) {
       throw new Error('Domain is required');
     }
 
-    console.log(`Fetching URLs for domain: ${domain}, offset: ${offset}`);
+    console.log(`Fetching URLs for domain: ${domain}`);
     
-    // Increased limit for faster collection
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=200`;
+    // Direct fetch from Wayback Machine with increased limit
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&limit=1000`;
     
     const response = await fetch(waybackUrl, {
       headers: {
@@ -37,7 +34,9 @@ serve(async (req) => {
     }
 
     const text = await response.text();
-    const urls = text.split('\n').filter(url => url.trim() !== '');
+    const urls = text.split('\n')
+      .filter(url => url.trim() !== '')
+      .sort();
 
     console.log(`Found ${urls.length} URLs`);
     
