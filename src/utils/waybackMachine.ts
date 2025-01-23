@@ -3,6 +3,7 @@ import { WaybackResult } from '../types/wayback';
 const MAX_RETRIES = 4;
 const CHUNK_SIZE = 1000;
 const TIMEOUT_MS = 30000; // 30 seconds
+const BATCH_SIZE = 50; // Number of URLs to process in parallel
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -118,17 +119,16 @@ const checkUrlStatus = async (url: string): Promise<number> => {
   try {
     const response = await fetch(url, {
       method: 'HEAD',
-      mode: 'no-cors', // This is important for cross-origin requests
+      mode: 'no-cors',
     });
     return response.status;
   } catch (error) {
     console.error(`Error checking URL status for ${url}:`, error);
-    return 404; // Return 404 for failed requests
+    return 404;
   }
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
-  // Updated list of more reliable CORS proxies
   const proxyUrls = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
@@ -178,13 +178,11 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    // Check if the response is empty
     const text = await response.text();
     if (!text.trim()) {
       throw new Error('Empty response from proxy. Trying another proxy...');
     }
 
-    // Return a new Response object with the text
     return new Response(text);
 
   } catch (error) {
@@ -210,37 +208,73 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
   }
 };
 
+const fetchWaybackPage = async (domain: string, from: number): Promise<string[]> => {
+  const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${from}&limit=${CHUNK_SIZE}`;
+  
+  try {
+    const response = await fetchWithRetry(waybackUrl);
+    const text = await response.text();
+    return text.split('\n').filter(line => line.trim() !== '');
+  } catch (error) {
+    console.error('Error fetching wayback page:', error);
+    throw error;
+  }
+};
+
 export const processWaybackData = async (
-  data: string,
+  domain: string,
   onProgress: (progress: number) => void
 ): Promise<WaybackResult[]> => {
-  if (!data || data.trim() === '') {
-    throw new Error('No archived URLs found for this domain');
+  let allUrls: string[] = [];
+  let offset = 0;
+  let hasMore = true;
+  let progressCounter = 0;
+
+  console.log('Starting URL collection for domain:', domain);
+
+  // First phase: Collect all URLs
+  while (hasMore) {
+    try {
+      const urls = await fetchWaybackPage(domain, offset);
+      if (urls.length === 0) {
+        hasMore = false;
+      } else {
+        allUrls = [...allUrls, ...urls];
+        offset += CHUNK_SIZE;
+        progressCounter += urls.length;
+        onProgress(Math.min(40, (progressCounter / 1000) * 40)); // First 40% for collection
+        console.log(`Collected ${progressCounter} URLs so far...`);
+      }
+    } catch (error) {
+      console.error('Error in URL collection:', error);
+      break;
+    }
   }
 
-  const lines = data.split('\n')
-    .filter(line => line.trim() !== '')
-    .filter((value, index, self) => self.indexOf(value) === index) // Remove duplicates
-    .filter(url => isValidUrl(url.trim())); // Filter out invalid URLs
-    
-  const totalLines = lines.length;
-  const processedResults: WaybackResult[] = [];
-  const batchSize = 5; // Process URLs in smaller batches to avoid overwhelming the browser
+  // Remove duplicates and invalid URLs
+  allUrls = [...new Set(allUrls)].filter(url => isValidUrl(url.trim()));
+  console.log(`Total unique valid URLs found: ${allUrls.length}`);
 
-  for (let i = 0; i < totalLines; i += batchSize) {
-    const batch = lines.slice(i, i + batchSize);
+  // Second phase: Process URLs in batches
+  const processedResults: WaybackResult[] = [];
+  const totalUrls = allUrls.length;
+
+  for (let i = 0; i < allUrls.length; i += BATCH_SIZE) {
+    const batch = allUrls.slice(i, i + BATCH_SIZE);
     const batchPromises = batch.map(async (url) => {
       const trimmedUrl = url.trim();
-      const status = await checkUrlStatus(trimmedUrl);
-      
-      // Only include URLs that are accessible (status codes 2xx or 3xx)
-      if (status < 400) {
-        return {
-          timestamp: new Date().toLocaleString(),
-          status,
-          url: trimmedUrl,
-          contentType: getContentType(trimmedUrl)
-        };
+      try {
+        const status = await checkUrlStatus(trimmedUrl);
+        if (status < 400) {
+          return {
+            timestamp: new Date().toLocaleString(),
+            status,
+            url: trimmedUrl,
+            contentType: getContentType(trimmedUrl)
+          };
+        }
+      } catch (error) {
+        console.error(`Error processing URL ${trimmedUrl}:`, error);
       }
       return null;
     });
@@ -249,11 +283,14 @@ export const processWaybackData = async (
     const validResults = batchResults.filter((result): result is WaybackResult => result !== null);
     processedResults.push(...validResults);
 
-    const progress = Math.min(80 + (i / totalLines) * 20, 100);
-    onProgress(progress);
-    await sleep(100); // Add a small delay between batches
+    // Calculate progress (40-100%)
+    const progress = 40 + ((i / totalUrls) * 60);
+    onProgress(Math.min(100, progress));
+    
+    // Add a small delay between batches to prevent overwhelming the browser
+    await sleep(100);
   }
 
-  console.log(`Processed ${totalLines} URLs, found ${processedResults.length} valid URLs`);
+  console.log(`Successfully processed ${processedResults.length} valid URLs out of ${totalUrls} total URLs`);
   return processedResults;
 };

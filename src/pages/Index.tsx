@@ -53,7 +53,7 @@ const Index = () => {
     
     try {
       await storeDomainSearch(domain);
-      setProgress(20);
+      setProgress(10);
       
       if (!domain.trim()) {
         throw new Error('Please enter a valid domain');
@@ -63,25 +63,11 @@ const Index = () => {
         .replace(/^https?:\/\//, '')
         .replace(/\/+$/, '');
       
-      const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey&limit=10000`;
+      console.log('Fetching ALL Wayback Machine data for domain:', cleanDomain);
       
-      setProgress(40);
-      console.log('Fetching Wayback Machine data for domain:', cleanDomain);
-      
-      const response = await fetchWithRetry(waybackUrl);
-      setProgress(60);
-      
-      const text = await response.text();
-      console.log('Response size:', text.length, 'bytes');
-      
-      if (!text || text.trim() === '') {
-        throw new Error('No archived data found for this domain');
-      }
-
-      const waybackResults = await processWaybackData(text, setProgress);
+      const waybackResults = await processWaybackData(cleanDomain, setProgress);
       console.log(`Successfully processed ${waybackResults.length} URLs`);
       
-      setProgress(100);
       setResults(waybackResults);
       toast.success(`Found ${waybackResults.length} archived URLs!`);
       
