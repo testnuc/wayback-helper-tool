@@ -1,4 +1,5 @@
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,7 +69,7 @@ serve(async (req) => {
 
     console.log('Fetching from Wayback Machine:', domain, offset, limit);
     
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 25}`;
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 50}`;
     
     const response = await fetchWithRetry(waybackUrl, {
       headers: {
@@ -83,7 +84,7 @@ serve(async (req) => {
     const text = await response.text();
     const urls = text.split('\n').filter(url => url.trim() !== '');
 
-    console.log(`Found ${urls.length} URLs for domain ${domain}`);
+    console.log(`Found ${urls.length} URLs for domain ${domain} at offset ${offset}`);
     return new Response(
       JSON.stringify({ urls }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
