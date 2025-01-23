@@ -107,11 +107,12 @@ export const getContentType = (url: string): string => {
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
+  // Updated list of more reliable CORS proxies
   const proxyUrls = [
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://bypass-cors.herokuapp.com/${url}`,
-    `https://cors.bridged.cc/${url}`,
+    `https://corsproxy.org/?${encodeURIComponent(url)}`,
+    `https://cors.eu.org/${url}`,
+    `https://cors-anywhere.herokuapp.com/${url}`,
     `https://crossorigin.me/${url}`
   ];
 
@@ -134,7 +135,8 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       },
       mode: 'cors',
       credentials: 'omit',
-      signal: controller.signal
+      signal: controller.signal,
+      redirect: 'follow'
     });
 
     clearTimeout(timeoutId);
