@@ -108,11 +108,11 @@ export const getContentType = (url: string): string => {
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of more reliable CORS proxies
   const proxyUrls = [
-    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${url}`,
-    `https://cors-anywhere.herokuapp.com/${url}`,
-    `https://api.codetabs.com/v1/proxy/${url}`,
-    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy/${encodeURIComponent(url)}`,
+    `https://corsproxy.org/?${encodeURIComponent(url)}`,
+    `https://api.scraperapi.com/?api_key=free&url=${encodeURIComponent(url)}`,
+    `https://proxy.scrapeops.io/v1/?api_key=free&url=${encodeURIComponent(url)}`
   ];
 
   const controller = new AbortController();
@@ -148,7 +148,7 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       console.error(`Proxy error (${response.status}):`, errorBody);
       
       if (response.status === 403) {
-        throw new Error('Access denied by CORS proxy. Trying another proxy...');
+        throw new Error('Access denied by proxy. Trying another proxy...');
       }
       if (response.status === 408 || response.status === 504) {
         throw new Error('Request timeout. Trying another proxy...');
@@ -159,10 +159,19 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    // Handle allorigins.win specific response format
-    if (proxyUrl.includes('allorigins.win')) {
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
       const jsonResponse = await response.json();
-      return new Response(jsonResponse.contents);
+      // Handle different JSON response formats from various proxies
+      if (jsonResponse.contents) {
+        return new Response(jsonResponse.contents);
+      }
+      if (jsonResponse.result) {
+        return new Response(jsonResponse.result);
+      }
+      if (jsonResponse.data) {
+        return new Response(jsonResponse.data);
+      }
     }
 
     return response;
