@@ -6,8 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_RETRIES = 3;
-const TIMEOUT_MS = 15000; // 15 seconds timeout
+const TIMEOUT_MS = 10000; // Reduced from 15000 to 10000ms
+const MAX_RETRIES = 2; // Reduced from 3 to 2
 
 async function fetchWithRetry(url: string, options: any, retries = MAX_RETRIES): Promise<Response> {
   try {
@@ -69,7 +69,7 @@ serve(async (req) => {
 
     console.log('Fetching from Wayback Machine:', domain, offset, limit);
     
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 50}`;
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 25}`;
     
     const response = await fetchWithRetry(waybackUrl, {
       headers: {
