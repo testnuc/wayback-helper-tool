@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
@@ -16,19 +15,16 @@ serve(async (req) => {
   }
 
   try {
-    if (req.method !== 'POST') {
-      throw new Error('Method not allowed');
-    }
-
-    const { domain, offset, limit } = await req.json();
+    const { domain, offset } = await req.json();
 
     if (!domain) {
       throw new Error('Domain is required');
     }
 
-    console.log(`Fetching URLs for domain: ${domain}, offset: ${offset}, limit: ${limit}`);
+    console.log(`Fetching URLs for domain: ${domain}, offset: ${offset}`);
     
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 50}`;
+    // Increased limit for faster collection
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=200`;
     
     const response = await fetch(waybackUrl, {
       headers: {
