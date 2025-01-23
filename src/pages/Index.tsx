@@ -114,6 +114,7 @@ const Index = () => {
                   js: results.filter(r => r.contentType === "js").length,
                   json: results.filter(r => r.contentType === "json").length,
                   text: results.filter(r => r.contentType === "text").length,
+                  html: results.filter(r => r.contentType === "html").length,
                   images: results.filter(r => r.contentType === "images").length,
                   videos: results.filter(r => r.contentType === "videos").length,
                   pdfs: results.filter(r => r.contentType === "pdfs").length,

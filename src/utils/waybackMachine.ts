@@ -11,6 +11,11 @@ export const getContentType = (url: string): string => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
   const filename = url.split('/').pop()?.toLowerCase() || '';
   
+  // HTML files
+  if (extension === 'html' || extension === 'htm') {
+    return 'html';
+  }
+  
   // Backup and Logs
   if ([
     'log', 'bak', 'backup', 'swp', 'lock', 'passwords', 'keys', 'ssh',
@@ -80,7 +85,7 @@ export const getContentType = (url: string): string => {
   if (extension === 'json') {
     return 'json';
   }
-  if (['txt', 'html', 'xml', 'css', 'scss', 'less'].includes(extension)) {
+  if (['txt', 'xml', 'css', 'scss', 'less'].includes(extension)) {
     return 'text';
   }
   if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico', 'bmp'].includes(extension)) {
