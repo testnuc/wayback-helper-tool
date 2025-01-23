@@ -115,11 +115,15 @@ const fetchWaybackPage = async (domain: string, from: number): Promise<string[]>
       body: {
         domain,
         offset: from,
-        limit: 500 // Reduced chunk size for better reliability
+        limit: 500
       }
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error from wayback function:', error);
+      throw error;
+    }
+
     return data.urls || [];
   } catch (error) {
     console.error('Error fetching wayback page:', error);

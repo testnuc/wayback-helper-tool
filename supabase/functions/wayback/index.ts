@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -22,6 +23,8 @@ serve(async (req) => {
 
     const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 500}`;
     
+    console.log('Fetching from Wayback Machine:', waybackUrl);
+    
     const response = await fetch(waybackUrl, {
       headers: {
         'User-Agent': 'WaybackArchiveBot/1.0',
@@ -35,12 +38,15 @@ serve(async (req) => {
     const text = await response.text();
     const urls = text.split('\n').filter(url => url.trim() !== '');
 
+    console.log(`Found ${urls.length} URLs for domain ${domain}`);
+
     return new Response(
       JSON.stringify({ urls }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
+    console.error('Error in wayback function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
