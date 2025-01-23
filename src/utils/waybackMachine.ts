@@ -104,11 +104,11 @@ export const getContentType = (url: string): string => {
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
-    `https://api.scraperapi.com/?api_key=free-tier&url=${encodeURIComponent(url)}`,
-    `https://proxy.scrapeops.io/v1/?api_key=free-tier&url=${encodeURIComponent(url)}`,
-    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free-tier`,
-    `https://corsproxy.org/?${encodeURIComponent(url)}`,
-    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://bypass-cors.herokuapp.com/${url}`,
+    `https://cors.bridged.cc/${url}`,
+    `https://crossorigin.me/${url}`
   ];
 
   const controller = new AbortController();
