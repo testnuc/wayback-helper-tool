@@ -110,9 +110,9 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
   const proxyUrls = [
     `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
     `https://api.codetabs.com/v1/proxy/${encodeURIComponent(url)}`,
-    `https://corsproxy.org/?${encodeURIComponent(url)}`,
-    `https://api.scraperapi.com/?api_key=free&url=${encodeURIComponent(url)}`,
-    `https://proxy.scrapeops.io/v1/?api_key=free&url=${encodeURIComponent(url)}`
+    `https://api.scraperapi.com/scrape?url=${encodeURIComponent(url)}`,
+    `https://proxy.scrapeops.io/v1/?api_key=free&url=${encodeURIComponent(url)}`,
+    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free`
   ];
 
   const controller = new AbortController();
@@ -130,10 +130,7 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         'Connection': 'keep-alive',
         'User-Agent': 'Mozilla/5.0 (compatible; WaybackArchiveBot/1.0)',
         'Origin': window.location.origin,
-        'X-Requested-With': 'XMLHttpRequest',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': '*'
+        'X-Requested-With': 'XMLHttpRequest'
       },
       mode: 'cors',
       credentials: 'omit',
@@ -172,6 +169,11 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       if (jsonResponse.data) {
         return new Response(jsonResponse.data);
       }
+      if (jsonResponse.text) {
+        return new Response(jsonResponse.text);
+      }
+      // If no recognized format, return the raw response
+      return new Response(JSON.stringify(jsonResponse));
     }
 
     return response;
