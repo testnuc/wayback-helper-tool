@@ -9,6 +9,8 @@ import { AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WaybackResult } from "../types/wayback";
 import { processWaybackData, fetchWithRetry } from "../utils/waybackMachine";
+import { FeedbackForm } from "@/components/FeedbackForm";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +19,19 @@ const Index = () => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  const storeDomainSearch = async (domain: string) => {
+    try {
+      const { error } = await supabase
+        .from("domain_searches")
+        .insert([{ domain }]);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error storing domain search:", err);
+      // Don't show error to user as this is not critical
+    }
+  };
+
   const fetchWaybackUrls = async (domain: string) => {
     setIsLoading(true);
     setError(null);
@@ -24,6 +39,7 @@ const Index = () => {
     setResults([]);
     
     try {
+      await storeDomainSearch(domain);
       setProgress(20);
       
       if (!domain.trim()) {
@@ -136,6 +152,15 @@ const Index = () => {
           status,
           url
         }))} />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Request a Feature</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FeedbackForm />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
