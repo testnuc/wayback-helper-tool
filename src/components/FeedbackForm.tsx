@@ -37,7 +37,7 @@ export const FeedbackForm = () => {
       <div>
         <Input
           type="email"
-          placeholder="Company Email"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
