@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Heart } from "lucide-react";
 import { Ripple } from "@/components/Ripple";
 
 const Auth = () => {
@@ -61,18 +60,9 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
       <Ripple count={5} color="bg-primary/5" />
       
-      {/* Creator Attribution */}
+      {/* About Section */}
       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-8">
-        <span>Created by</span>
-        <a 
-          href="https://www.hackwithsingh.com" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-        >
-          www.hackwithsingh.com
-          <Heart className="w-4 h-4 text-red-500 animate-pulse" fill="currentColor" />
-        </a>
+        <span>Discover historical website data with Wayback Finder</span>
       </div>
 
       <h1 className="text-3xl font-bold text-center mb-8">
