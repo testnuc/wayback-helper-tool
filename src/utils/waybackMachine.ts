@@ -109,6 +109,24 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
+const checkUrlStatus = async (url: string): Promise<number> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('wayback', {
+      body: { checkUrl: url }
+    });
+
+    if (error) {
+      console.error('Error checking URL status:', error);
+      return 404;
+    }
+
+    return data.status;
+  } catch (error) {
+    console.error(`Error checking URL status for ${url}:`, error);
+    return 404;
+  }
+};
+
 const fetchWaybackPage = async (domain: string, from: number): Promise<string[]> => {
   try {
     const { data, error } = await supabase.functions.invoke('wayback', {
@@ -128,19 +146,6 @@ const fetchWaybackPage = async (domain: string, from: number): Promise<string[]>
   } catch (error) {
     console.error('Error fetching wayback page:', error);
     throw error;
-  }
-};
-
-const checkUrlStatus = async (url: string): Promise<number> => {
-  try {
-    const response = await fetch(url, {
-      method: 'HEAD',
-      mode: 'no-cors'
-    });
-    return response.status;
-  } catch (error) {
-    console.error(`Error checking URL status for ${url}:`, error);
-    return 404;
   }
 };
 

@@ -12,18 +12,36 @@ serve(async (req) => {
   }
 
   try {
-    const { domain, offset, limit } = await req.json();
-    
-    if (!domain) {
-      return new Response(
-        JSON.stringify({ error: 'Domain is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const { domain, offset, limit, checkUrl } = await req.json();
+
+    // If it's a URL status check request
+    if (checkUrl) {
+      console.log('Checking URL status:', checkUrl);
+      try {
+        const response = await fetch(checkUrl, {
+          method: 'HEAD',
+          redirect: 'follow'
+        });
+        return new Response(
+          JSON.stringify({ status: response.status }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('Error checking URL:', error);
+        return new Response(
+          JSON.stringify({ status: 404 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
+    // If it's a wayback machine request
+    if (!domain) {
+      throw new Error('Domain is required');
+    }
+
+    console.log('Fetching from Wayback Machine:', domain, offset, limit);
     const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 500}`;
-    
-    console.log('Fetching from Wayback Machine:', waybackUrl);
     
     const response = await fetch(waybackUrl, {
       headers: {
@@ -39,7 +57,6 @@ serve(async (req) => {
     const urls = text.split('\n').filter(url => url.trim() !== '');
 
     console.log(`Found ${urls.length} URLs for domain ${domain}`);
-
     return new Response(
       JSON.stringify({ urls }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -49,7 +66,10 @@ serve(async (req) => {
     console.error('Error in wayback function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
     );
   }
 });
