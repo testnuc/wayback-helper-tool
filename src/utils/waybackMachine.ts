@@ -133,7 +133,7 @@ const fetchWaybackPage = async (domain: string, from: number): Promise<string[]>
       body: {
         domain,
         offset: from,
-        limit: 50 // Reduced from 100 to 50 for faster processing
+        limit: 25 // Reduced from 50 to 25 for less resource usage
       }
     });
 
@@ -158,11 +158,11 @@ export const processWaybackData = async (
   let hasMore = true;
   let progressCounter = 0;
   let consecutiveEmptyResponses = 0;
-  const MAX_URLS = 500; // Reduced from 1000 to 500
-  const BATCH_DELAY = 500; // Reduced from 1000ms to 500ms
+  const MAX_URLS = 250; // Reduced from 500 to 250
+  const BATCH_DELAY = 1000; // Increased from 500ms to 1000ms for better stability
 
   console.log('Starting URL collection for domain:', domain);
-  onProgress(5); // Initial progress indication
+  onProgress(5);
 
   while (hasMore && consecutiveEmptyResponses < 3 && allUrls.length < MAX_URLS) {
     try {
@@ -177,7 +177,7 @@ export const processWaybackData = async (
       } else {
         consecutiveEmptyResponses = 0;
         allUrls = [...allUrls, ...urls];
-        offset += 50; // Adjusted for new batch size
+        offset += 25; // Adjusted for new batch size
         progressCounter += urls.length;
         const collectionProgress = Math.min(40, (progressCounter / MAX_URLS) * 40);
         onProgress(collectionProgress);
@@ -197,7 +197,7 @@ export const processWaybackData = async (
 
   const processedResults: WaybackResult[] = [];
   const totalUrls = Math.min(allUrls.length, MAX_URLS);
-  const BATCH_SIZE = 5; // Reduced from 10 to 5 for more frequent updates
+  const BATCH_SIZE = 3; // Reduced from 5 to 3 for less resource usage
 
   for (let i = 0; i < totalUrls; i += BATCH_SIZE) {
     const batch = allUrls.slice(i, i + BATCH_SIZE);

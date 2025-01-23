@@ -7,7 +7,7 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -17,10 +17,16 @@ serve(async (req) => {
     if (checkUrl) {
       console.log('Checking URL status:', checkUrl);
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
         const response = await fetch(checkUrl, {
           method: 'HEAD',
-          redirect: 'follow'
+          redirect: 'follow',
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
         return new Response(
           JSON.stringify({ status: response.status }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -40,13 +46,20 @@ serve(async (req) => {
     }
 
     console.log('Fetching from Wayback Machine:', domain, offset, limit);
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 100}`; // Reduced limit to 100
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 25}`; // Reduced limit to 25
     
     const response = await fetch(waybackUrl, {
       headers: {
         'User-Agent': 'WaybackArchiveBot/1.0',
       },
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Wayback Machine API error: ${response.status}`);
