@@ -12,18 +12,65 @@ export const getContentType = (url: string): string => {
   const filename = url.split('/').pop()?.toLowerCase() || '';
   
   // Backup and Logs
-  if (['log', 'bak', 'backup'].includes(extension) || filename.endsWith('config.old')) {
+  if ([
+    'log', 'bak', 'backup', 'swp', 'lock', 'passwords', 'keys', 'ssh',
+    'json.bak', 'config.old'
+  ].includes(extension) || filename.includes('backup')) {
     return 'backup';
   }
   
   // Certificate and Security Files
-  if (['crt', 'pem', 'key', 'pub'].includes(extension)) {
+  if ([
+    'crt', 'pem', 'key', 'pub', 'asc', 'htpasswd', 'htaccess'
+  ].includes(extension)) {
     return 'security';
   }
   
   // Configuration Files
-  if (['conf', 'config', 'htpasswd', 'htaccess', 'env', 'inc'].includes(extension)) {
+  if ([
+    'conf', 'config', 'env', 'inc', 'ini', 'bat', 'sh', 'yaml'
+  ].includes(extension)) {
     return 'config';
+  }
+  
+  // Spreadsheets and Data Files
+  if ([
+    'xls', 'xlsx', 'xlsm', 'xlsb', 'csv', 'xml'
+  ].includes(extension)) {
+    return 'excel';
+  }
+  
+  // Documents
+  if ([
+    'doc', 'docx', 'ppt', 'md'
+  ].includes(extension)) {
+    return 'text';
+  }
+  
+  // Database Files
+  if ([
+    'sql', 'db', 'sqlite', 'sqlite3', 'db3', 'git'
+  ].includes(extension)) {
+    return 'backup';
+  }
+  
+  // Archives and Packages
+  if ([
+    'zip', 'tar', 'gz', 'deb', 'rpm', 'iso', 'img', 'apk', 'msi', 'dmg', 'tmp'
+  ].includes(extension)) {
+    return 'backup';
+  }
+  
+  // Executables and Binaries
+  if ([
+    'exe', 'dll', 'bin'
+  ].includes(extension)) {
+    return 'others';
+  }
+  
+  // Checksums
+  if (extension === 'md5') {
+    return 'security';
   }
   
   // Existing file types
@@ -33,7 +80,7 @@ export const getContentType = (url: string): string => {
   if (extension === 'json') {
     return 'json';
   }
-  if (['txt', 'md', 'csv', 'html', 'xml', 'css', 'scss', 'less'].includes(extension)) {
+  if (['txt', 'html', 'xml', 'css', 'scss', 'less'].includes(extension)) {
     return 'text';
   }
   if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico', 'bmp'].includes(extension)) {
@@ -45,9 +92,7 @@ export const getContentType = (url: string): string => {
   if (extension === 'pdf') {
     return 'pdfs';
   }
-  if (['xls', 'xlsx', 'xlsm', 'xlsb'].includes(extension)) {
-    return 'excel';
-  }
+  
   return 'others';
 };
 
