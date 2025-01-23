@@ -6,7 +6,7 @@ import { Terminal } from "@/components/Terminal";
 import { ContentTypeButtons } from "@/components/ContentTypeButtons";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, LogOut } from "lucide-react";
+import { AlertCircle, LogOut, Heart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WaybackResult } from "../types/wayback";
 import { processWaybackData, fetchWithRetry } from "../utils/waybackMachine";
@@ -106,6 +106,20 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-6xl mx-auto space-y-8">
+        {/* Creator Attribution */}
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <span>Created by</span>
+          <a 
+            href="https://www.hackwithsingh.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+          >
+            www.hackwithsingh.com
+            <Heart className="w-4 h-4 text-red-500 animate-pulse" fill="currentColor" />
+          </a>
+        </div>
+
         <div className="flex justify-between items-center">
           <Card className="flex-1">
             <CardHeader>
