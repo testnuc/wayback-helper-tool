@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Heart } from "lucide-react";
+import { Ripple } from "@/components/Ripple";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -57,7 +58,9 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
+      <Ripple count={5} color="bg-primary/5" />
+      
       {/* Creator Attribution */}
       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-8">
         <span>Created by</span>

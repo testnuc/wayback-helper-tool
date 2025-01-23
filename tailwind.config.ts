@@ -81,11 +81,17 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0" },
         },
+        ripple: {
+          "0%": { transform: "scale(0)", opacity: "1" },
+          "50%": { transform: "scale(10)", opacity: "0.5" },
+          "100%": { transform: "scale(20)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         blink: "blink 1s step-start infinite",
+        ripple: "ripple 3s linear infinite",
       },
     },
   },

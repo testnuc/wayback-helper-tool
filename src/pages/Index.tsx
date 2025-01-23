@@ -13,6 +13,7 @@ import { processWaybackData, fetchWithRetry } from "../utils/waybackMachine";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Ripple } from "@/components/Ripple";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -104,7 +105,8 @@ const Index = () => {
     : results;
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-8 relative">
+      <Ripple count={5} color="bg-primary/5" />
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Creator Attribution */}
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
