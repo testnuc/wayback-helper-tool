@@ -1,8 +1,7 @@
 import { WaybackResult } from '../types/wayback';
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 4;
 const CHUNK_SIZE = 1000;
-const MAX_RESPONSE_SIZE = 50 * 1024 * 1024; // 50MB limit
 const TIMEOUT_MS = 30000; // 30 seconds
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -109,11 +108,11 @@ export const getContentType = (url: string): string => {
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of more reliable CORS proxies
   const proxyUrls = [
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
     `https://api.codetabs.com/v1/proxy?quest=${url}`,
-    `https://thingproxy.freeboard.io/fetch/${url}`,
-    `https://proxy.cors.sh/${url}`,
-    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
-    `https://crossorigin.me/${url}`
+    `https://cors-anywhere.herokuapp.com/${url}`,
+    `https://api.codetabs.com/v1/proxy/${url}`,
+    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`
   ];
 
   const controller = new AbortController();
@@ -132,7 +131,9 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         'User-Agent': 'Mozilla/5.0 (compatible; WaybackArchiveBot/1.0)',
         'Origin': window.location.origin,
         'X-Requested-With': 'XMLHttpRequest',
-        'x-cors-grida-api-key': 'xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx'
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
       },
       mode: 'cors',
       credentials: 'omit',
@@ -156,6 +157,12 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         throw new Error('Server error. Trying another proxy...');
       }
       throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Handle allorigins.win specific response format
+    if (proxyUrl.includes('allorigins.win')) {
+      const jsonResponse = await response.json();
+      return new Response(jsonResponse.contents);
     }
 
     return response;
