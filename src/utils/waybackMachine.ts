@@ -109,31 +109,13 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
-const checkUrlStatus = async (url: string): Promise<number> => {
-  try {
-    const { data, error } = await supabase.functions.invoke('wayback', {
-      body: { checkUrl: url }
-    });
-
-    if (error) {
-      console.error('Error checking URL status:', error);
-      return 404;
-    }
-
-    return data.status;
-  } catch (error) {
-    console.error(`Error checking URL status for ${url}:`, error);
-    return 404;
-  }
-};
-
 const fetchWaybackPage = async (domain: string, from: number): Promise<string[]> => {
   try {
     const { data, error } = await supabase.functions.invoke('wayback', {
       body: {
         domain,
         offset: from,
-        limit: 50 // Increased from 25 to 50
+        limit: 100 // Increased limit for faster collection
       }
     });
 
@@ -158,8 +140,8 @@ export const processWaybackData = async (
   let hasMore = true;
   let progressCounter = 0;
   let consecutiveEmptyResponses = 0;
-  const MAX_URLS = 200; // Reduced from 250 to 200 for faster processing
-  const BATCH_SIZE = 10; // Increased from 5 to 10 for parallel processing
+  const MAX_URLS = 500; // Increased limit since we're not checking status
+  const BATCH_SIZE = 50; // Increased batch size
 
   console.log('Starting URL collection for domain:', domain);
   onProgress(5);
@@ -177,9 +159,9 @@ export const processWaybackData = async (
       } else {
         consecutiveEmptyResponses = 0;
         allUrls = [...new Set([...allUrls, ...urls])];
-        offset += 50;
+        offset += 100;
         progressCounter += urls.length;
-        const collectionProgress = Math.min(40, (progressCounter / MAX_URLS) * 40);
+        const collectionProgress = Math.min(80, (progressCounter / MAX_URLS) * 80);
         onProgress(collectionProgress);
         console.log(`Collected ${progressCounter} URLs (${Math.round(collectionProgress)}% complete)...`);
         
@@ -201,36 +183,15 @@ export const processWaybackData = async (
   allUrls = [...new Set(allUrls)].filter(url => isValidUrl(url.trim())).slice(0, MAX_URLS);
   console.log(`Total unique valid URLs found: ${allUrls.length}`);
 
-  const processedResults: WaybackResult[] = [];
-  const totalUrls = allUrls.length;
+  // Convert URLs directly to results without checking status
+  const processedResults: WaybackResult[] = allUrls.map(url => ({
+    timestamp: new Date().toLocaleString(),
+    status: 200, // Default status since we're not checking
+    url: url.trim(),
+    contentType: getContentType(url.trim())
+  }));
 
-  for (let i = 0; i < totalUrls; i += BATCH_SIZE) {
-    const batch = allUrls.slice(i, i + BATCH_SIZE);
-    const batchPromises = batch.map(async (url) => {
-      const trimmedUrl = url.trim();
-      try {
-        const status = await checkUrlStatus(trimmedUrl);
-        return {
-          timestamp: new Date().toLocaleString(),
-          status,
-          url: trimmedUrl,
-          contentType: getContentType(trimmedUrl)
-        };
-      } catch (error) {
-        console.error(`Error processing URL ${trimmedUrl}:`, error);
-        return null;
-      }
-    });
-
-    const batchResults = await Promise.all(batchPromises);
-    const validResults = batchResults.filter((result): result is WaybackResult => result !== null);
-    processedResults.push(...validResults);
-
-    const progress = 40 + ((i / totalUrls) * 60);
-    onProgress(Math.min(100, progress));
-    console.log(`Processing progress: ${Math.round(progress)}%`);
-  }
-
-  console.log(`Successfully processed ${processedResults.length} valid URLs out of ${totalUrls} total URLs`);
+  onProgress(100);
+  console.log(`Successfully processed ${processedResults.length} URLs`);
   return processedResults;
 };
