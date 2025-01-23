@@ -101,6 +101,80 @@ export const getContentType = (url: string): string => {
   return 'others';
 };
 
+export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
+  // Updated list of CORS proxies with more reliable options
+  const proxyUrls = [
+    `https://api.cors.sh/v1/${url}`,
+    `https://api.scraperapi.com/?api_key=free-tier&url=${encodeURIComponent(url)}`,
+    `https://corsproxy.org/?${encodeURIComponent(url)}`,
+    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free-tier`,
+    `https://proxy.scrapeops.io/v1/?api_key=free-tier&url=${encodeURIComponent(url)}`,
+  ];
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
+    console.log(`Attempt ${retryCount + 1}, using proxy: ${proxyUrl}`);
+
+    const response = await fetch(proxyUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'User-Agent': 'Mozilla/5.0 (compatible; WaybackArchiveBot/1.0)',
+      },
+      signal: controller.signal,
+      mode: 'cors'
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Proxy error (${response.status}):`, errorBody);
+      
+      if (response.status === 403) {
+        throw new Error('Access denied by CORS proxy. Trying another proxy...');
+      }
+      if (response.status === 408 || response.status === 504) {
+        throw new Error('Request timeout. Trying another proxy...');
+      }
+      if (response.status >= 500) {
+        throw new Error('Server error. Trying another proxy...');
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+      throw new Error('Response too large. Please try a more specific domain.');
+    }
+
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out. The server is taking too long to respond.');
+      }
+
+      if (retryCount < 4) {
+        console.log(`Retry attempt ${retryCount + 1} of 4`);
+        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+        return fetchWithRetry(url, retryCount + 1);
+      }
+      
+      throw new Error('All CORS proxies failed. Please try again later or use a different domain.');
+    }
+    throw error;
+  }
+};
+
 export const processWaybackData = async (
   data: string,
   onProgress: (progress: number) => void
@@ -130,79 +204,4 @@ export const processWaybackData = async (
   }
 
   return processedResults;
-};
-
-export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
-  // Updated list of CORS proxies with more reliable options
-  const proxyUrls = [
-    `https://thingproxy.freeboard.io/fetch/${url}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `https://proxy.cors.sh/${url}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  ];
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
-    console.log(`Attempt ${retryCount + 1}, using proxy: ${proxyUrl}`);
-
-    const response = await fetch(proxyUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/plain,*/*',
-        'x-requested-with': 'XMLHttpRequest',
-        'origin': window.location.origin
-      },
-      signal: controller.signal,
-      mode: 'cors'
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Proxy error (${response.status}):`, errorBody);
-      
-      if (response.status === 403) {
-        throw new Error('Access denied by CORS proxy. Trying another proxy...');
-      }
-      if (response.status === 408 || response.status === 504) {
-        throw new Error('Request timeout. Trying another proxy...');
-      }
-      if (response.status >= 500) {
-        throw new Error('Server error. Trying another proxy...');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const contentLength = response.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
-      throw new Error('Response too large. Please try a more specific domain.');
-    }
-
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    if (error instanceof Error) {
-      // Handle abort error
-      if (error.name === 'AbortError') {
-        throw new Error('Request timed out. The server is taking too long to respond.');
-      }
-
-      // Retry logic with exponential backoff
-      if (retryCount < MAX_RETRIES) {
-        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`);
-        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
-        await sleep(backoffTime);
-        return fetchWithRetry(url, retryCount + 1);
-      }
-      
-      throw new Error('All CORS proxies failed. Please try again later or use a different domain.');
-    }
-    throw error;
-  }
 };
