@@ -1,18 +1,15 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -22,18 +19,18 @@ serve(async (req) => {
 
     const { domain, offset, limit } = await req.json();
 
-    if (!domain || typeof domain !== 'string') {
-      throw new Error('Domain is required and must be a string');
+    if (!domain) {
+      throw new Error('Domain is required');
     }
 
-    console.log('Fetching from Wayback Machine:', domain, offset, limit);
+    console.log(`Fetching URLs for domain: ${domain}, offset: ${offset}, limit: ${limit}`);
     
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 100}`; // Increased limit
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 50}`;
     
     const response = await fetch(waybackUrl, {
       headers: {
         'User-Agent': 'WaybackArchiveBot/1.0',
-      }
+      },
     });
 
     if (!response.ok) {
@@ -43,16 +40,15 @@ serve(async (req) => {
     const text = await response.text();
     const urls = text.split('\n').filter(url => url.trim() !== '');
 
-    console.log(`Found ${urls.length} URLs for domain ${domain} at offset ${offset}`);
+    console.log(`Found ${urls.length} URLs`);
     
     return new Response(
       JSON.stringify({ urls }),
       { 
-        status: 200,
         headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
 
@@ -62,14 +58,14 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: error.stack
+        details: error.stack,
       }),
       { 
         status: 400,
         headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        }
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
     );
   }
