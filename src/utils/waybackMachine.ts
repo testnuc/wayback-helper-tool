@@ -107,13 +107,13 @@ export const getContentType = (url: string): string => {
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
-  // Updated list of more reliable CORS proxies
+  // Updated list of more reliable CORS proxies, removed corsproxy.io
   const proxyUrls = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://corsproxy.org/?${encodeURIComponent(url)}`,
     `https://cors.eu.org/${url}`,
-    `https://cors-anywhere.herokuapp.com/${url}`,
-    `https://crossorigin.me/${url}`
+    `https://thingproxy.freeboard.io/fetch/${url}`,
+    `https://api.codetabs.com/v1/proxy?quest=${url}`
   ];
 
   const controller = new AbortController();
