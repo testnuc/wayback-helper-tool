@@ -1,11 +1,4 @@
-import { WaybackResult } from '../types/wayback';
-
-const MAX_RETRIES = 5;
-const CHUNK_SIZE = 500; // Reduced from 1000 for better reliability
-const TIMEOUT_MS = 45000; // Increased timeout to 45 seconds
-const BATCH_SIZE = 25; // Reduced batch size for better reliability
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { supabase } from "@/integrations/supabase/client";
 
 export const getContentType = (url: string): string => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
@@ -115,98 +108,34 @@ const isValidUrl = (url: string): boolean => {
   }
 };
 
+const fetchWaybackPage = async (domain: string, from: number): Promise<string[]> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('wayback', {
+      body: {
+        domain,
+        offset: from,
+        limit: 500 // Reduced chunk size for better reliability
+      }
+    });
+
+    if (error) throw error;
+    return data.urls || [];
+  } catch (error) {
+    console.error('Error fetching wayback page:', error);
+    throw error;
+  }
+};
+
 const checkUrlStatus = async (url: string): Promise<number> => {
   try {
     const response = await fetch(url, {
       method: 'HEAD',
-      mode: 'no-cors',
-      timeout: 10000,
+      mode: 'no-cors'
     });
     return response.status;
   } catch (error) {
     console.error(`Error checking URL status for ${url}:`, error);
     return 404;
-  }
-};
-
-export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
-  // Updated list of CORS proxies with more reliable options
-  const proxyUrls = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    `https://cors-anywhere.herokuapp.com/${encodeURIComponent(url)}`,
-    `https://crossorigin.me/${encodeURIComponent(url)}`,
-    `https://yacdn.org/proxy/${encodeURIComponent(url)}`,
-    `https://cors.eu.org/${encodeURIComponent(url)}`
-  ];
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
-    console.log(`Attempt ${retryCount + 1}, using proxy: ${proxyUrl}`);
-
-    const response = await fetch(proxyUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': '*/*',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'User-Agent': 'Mozilla/5.0 (compatible; WaybackArchiveBot/1.0)',
-        'Origin': window.location.origin,
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      signal: controller.signal,
-      credentials: 'omit'
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Proxy error (${response.status}):`, errorBody);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const text = await response.text();
-    if (!text.trim()) {
-      throw new Error('Empty response from proxy');
-    }
-
-    return new Response(text);
-
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    if (error instanceof Error) {
-      console.error('Fetch error:', error.message);
-      
-      if (error.name === 'AbortError') {
-        console.log('Request timed out, trying next proxy...');
-      }
-
-      if (retryCount < MAX_RETRIES) {
-        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 15000);
-        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}, waiting ${backoffTime}ms`);
-        await sleep(backoffTime);
-        return fetchWithRetry(url, retryCount + 1);
-      }
-    }
-    throw new Error('All proxies failed. Please try again later.');
-  }
-};
-
-const fetchWaybackPage = async (domain: string, from: number): Promise<string[]> => {
-  const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${from}&limit=${CHUNK_SIZE}`;
-  
-  try {
-    const response = await fetchWithRetry(waybackUrl);
-    const text = await response.text();
-    return text.split('\n').filter(line => line.trim() !== '');
-  } catch (error) {
-    console.error('Error fetching wayback page:', error);
-    throw error;
   }
 };
 
@@ -225,6 +154,7 @@ export const processWaybackData = async (
   while (hasMore && consecutiveEmptyResponses < 3) {
     try {
       const urls = await fetchWaybackPage(domain, offset);
+      
       if (urls.length === 0) {
         consecutiveEmptyResponses++;
         if (consecutiveEmptyResponses >= 3) {
@@ -234,20 +164,18 @@ export const processWaybackData = async (
       } else {
         consecutiveEmptyResponses = 0;
         allUrls = [...allUrls, ...urls];
-        offset += CHUNK_SIZE;
+        offset += 500;
         progressCounter += urls.length;
         onProgress(Math.min(40, (progressCounter / 1000) * 40));
         console.log(`Collected ${progressCounter} URLs so far...`);
         
-        // Add a small delay between requests to avoid overwhelming the server
-        await sleep(1000);
+        // Add a small delay between requests
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (error) {
       console.error('Error in URL collection:', error);
-      if (error instanceof Error && error.message.includes('All proxies failed')) {
-        hasMore = false;
-      }
-      await sleep(5000); // Wait longer on error before retrying
+      hasMore = false;
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
 
@@ -257,6 +185,7 @@ export const processWaybackData = async (
 
   const processedResults: WaybackResult[] = [];
   const totalUrls = allUrls.length;
+  const BATCH_SIZE = 25;
 
   for (let i = 0; i < allUrls.length; i += BATCH_SIZE) {
     const batch = allUrls.slice(i, i + BATCH_SIZE);
@@ -283,7 +212,7 @@ export const processWaybackData = async (
     const progress = 40 + ((i / totalUrls) * 60);
     onProgress(Math.min(100, progress));
     
-    await sleep(500);
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 
   console.log(`Successfully processed ${processedResults.length} valid URLs out of ${totalUrls} total URLs`);
