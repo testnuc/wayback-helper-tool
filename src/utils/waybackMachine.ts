@@ -136,11 +136,13 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
   // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://thingproxy.freeboard.io/fetch/${url}`,
     `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    `https://cors-anywhere.herokuapp.com/${url}`,
     `https://proxy.cors.sh/${url}`,
-    `https://cors.bridged.cc/${url}`
+    `https://cors.bridged.cc/${url}`,
+    `https://crossorigin.me/${url}`,
+    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
+    `https://cors-anywhere.herokuapp.com/${url}`
   ];
 
   const controller = new AbortController();
@@ -155,7 +157,8 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       headers: {
         'Accept': 'text/plain',
         'x-requested-with': 'XMLHttpRequest',
-        'origin': window.location.origin
+        'origin': window.location.origin,
+        'x-cors-grida-api-key': 'xxxxxxxxxxx', // Add your API key if using cors.bridged.cc
       },
       signal: controller.signal
     });
