@@ -41,8 +41,12 @@ export const FeedbackForm = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          maxLength={30}
           className="bg-background/5 border-background/10"
         />
+        <div className="text-xs text-muted-foreground mt-1">
+          {email.length}/30 characters
+        </div>
       </div>
       <div>
         <Textarea
@@ -50,8 +54,12 @@ export const FeedbackForm = () => {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           required
+          maxLength={30}
           className="bg-background/5 border-background/10 min-h-[120px]"
         />
+        <div className="text-xs text-muted-foreground mt-1">
+          {message.length}/30 characters
+        </div>
       </div>
       <Button 
         type="submit" 
