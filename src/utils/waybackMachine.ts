@@ -104,15 +104,15 @@ export const getContentType = (url: string): string => {
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
-    `https://api.cors.sh/v1/${url}`,
-    `https://api.scraperapi.com/?api_key=free-tier&url=${encodeURIComponent(url)}`,
-    `https://corsproxy.org/?${encodeURIComponent(url)}`,
-    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free-tier`,
-    `https://proxy.scrapeops.io/v1/?api_key=free-tier&url=${encodeURIComponent(url)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
+    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free-tier`
   ];
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
     const proxyUrl = proxyUrls[retryCount % proxyUrls.length];
@@ -125,9 +125,11 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
         'User-Agent': 'Mozilla/5.0 (compatible; WaybackArchiveBot/1.0)',
+        'Origin': window.location.origin,
       },
-      signal: controller.signal,
-      mode: 'cors'
+      mode: 'cors',
+      credentials: 'omit',
+      signal: controller.signal
     });
 
     clearTimeout(timeoutId);
@@ -149,7 +151,7 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
     }
 
     const contentLength = response.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) {
+    if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
       throw new Error('Response too large. Please try a more specific domain.');
     }
 
@@ -158,14 +160,16 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
     clearTimeout(timeoutId);
 
     if (error instanceof Error) {
+      console.error('Fetch error:', error.message);
+      
       if (error.name === 'AbortError') {
         throw new Error('Request timed out. The server is taking too long to respond.');
       }
 
-      if (retryCount < 4) {
-        console.log(`Retry attempt ${retryCount + 1} of 4`);
+      if (retryCount < MAX_RETRIES) {
+        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`);
         const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 10000);
-        await new Promise(resolve => setTimeout(resolve, backoffTime));
+        await sleep(backoffTime);
         return fetchWithRetry(url, retryCount + 1);
       }
       
