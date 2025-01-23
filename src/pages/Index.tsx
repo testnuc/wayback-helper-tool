@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, LogOut, Heart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WaybackResult } from "../types/wayback";
-import { processWaybackData, fetchWithRetry } from "../utils/waybackMachine";
+import { processWaybackData } from "../utils/waybackMachine";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { WaybackResult } from "../types/wayback";
 
 export const getContentType = (url: string): string => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
