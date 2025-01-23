@@ -135,14 +135,11 @@ export const processWaybackData = async (
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     `https://thingproxy.freeboard.io/fetch/${url}`,
     `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
     `https://proxy.cors.sh/${url}`,
-    `https://cors.bridged.cc/${url}`,
-    `https://crossorigin.me/${url}`,
-    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
-    `https://cors-anywhere.herokuapp.com/${url}`
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   ];
 
   const controller = new AbortController();
@@ -155,12 +152,12 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
     const response = await fetch(proxyUrl, {
       method: 'GET',
       headers: {
-        'Accept': 'text/plain',
+        'Accept': 'text/plain,*/*',
         'x-requested-with': 'XMLHttpRequest',
-        'origin': window.location.origin,
-        'x-cors-grida-api-key': 'xxxxxxxxxxx', // Add your API key if using cors.bridged.cc
+        'origin': window.location.origin
       },
-      signal: controller.signal
+      signal: controller.signal,
+      mode: 'cors'
     });
 
     clearTimeout(timeoutId);
@@ -174,6 +171,9 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       }
       if (response.status === 408 || response.status === 504) {
         throw new Error('Request timeout. Trying another proxy...');
+      }
+      if (response.status >= 500) {
+        throw new Error('Server error. Trying another proxy...');
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
