@@ -104,11 +104,11 @@ export const getContentType = (url: string): string => {
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
-    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free-tier`
+    `https://api.scraperapi.com/?api_key=free-tier&url=${encodeURIComponent(url)}`,
+    `https://proxy.scrapeops.io/v1/?api_key=free-tier&url=${encodeURIComponent(url)}`,
+    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free-tier`,
+    `https://corsproxy.org/?${encodeURIComponent(url)}`,
+    `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(url)}`,
   ];
 
   const controller = new AbortController();
@@ -126,6 +126,7 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         'Connection': 'keep-alive',
         'User-Agent': 'Mozilla/5.0 (compatible; WaybackArchiveBot/1.0)',
         'Origin': window.location.origin,
+        'X-Requested-With': 'XMLHttpRequest'
       },
       mode: 'cors',
       credentials: 'omit',
