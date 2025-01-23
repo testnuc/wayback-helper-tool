@@ -3,11 +3,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TIMEOUT_MS = 10000; // Reduced from 15000 to 10000ms
-const MAX_RETRIES = 2; // Reduced from 3 to 2
+const TIMEOUT_MS = 10000;
+const MAX_RETRIES = 2;
 
 async function fetchWithRetry(url: string, options: any, retries = MAX_RETRIES): Promise<Response> {
   try {
@@ -26,6 +27,7 @@ async function fetchWithRetry(url: string, options: any, retries = MAX_RETRIES):
     console.error(`Error fetching ${url}:`, error);
     if (retries > 0 && error.name === 'AbortError') {
       console.log(`Retrying fetch for ${url}, ${retries - 1} retries left`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
       return fetchWithRetry(url, options, retries - 1);
     }
     throw error;
@@ -33,11 +35,19 @@ async function fetchWithRetry(url: string, options: any, retries = MAX_RETRIES):
 }
 
 serve(async (req) => {
+  // Always handle OPTIONS request first
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   try {
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
+    }
+
     const { domain, offset, limit, checkUrl } = await req.json();
 
     // If it's a URL status check request
@@ -51,20 +61,32 @@ serve(async (req) => {
         
         return new Response(
           JSON.stringify({ status: response.status }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { 
+            status: 200,
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json' 
+            } 
+          }
         );
       } catch (error) {
         console.error('Error checking URL status:', error);
         return new Response(
           JSON.stringify({ status: 404, error: error.message }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { 
+            status: 200,
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json' 
+            } 
+          }
         );
       }
     }
 
-    // If it's a wayback machine request
-    if (!domain) {
-      throw new Error('Domain is required');
+    // Validate domain parameter
+    if (!domain || typeof domain !== 'string') {
+      throw new Error('Domain is required and must be a string');
     }
 
     console.log('Fetching from Wayback Machine:', domain, offset, limit);
@@ -85,21 +107,32 @@ serve(async (req) => {
     const urls = text.split('\n').filter(url => url.trim() !== '');
 
     console.log(`Found ${urls.length} URLs for domain ${domain} at offset ${offset}`);
+    
     return new Response(
       JSON.stringify({ urls }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 200,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
     );
 
   } catch (error) {
     console.error('Error in wayback function:', error);
+    
     return new Response(
       JSON.stringify({ 
         error: error.message,
         details: error.stack
       }),
       { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 400,
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }
       }
     );
   }
