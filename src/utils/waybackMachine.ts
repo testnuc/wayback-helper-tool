@@ -105,6 +105,28 @@ export const getContentType = (url: string): string => {
   return 'others';
 };
 
+const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const checkUrlStatus = async (url: string): Promise<number> => {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      mode: 'no-cors', // This is important for cross-origin requests
+    });
+    return response.status;
+  } catch (error) {
+    console.error(`Error checking URL status for ${url}:`, error);
+    return 404; // Return 404 for failed requests
+  }
+};
+
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of more reliable CORS proxies
   const proxyUrls = [
@@ -198,25 +220,40 @@ export const processWaybackData = async (
 
   const lines = data.split('\n')
     .filter(line => line.trim() !== '')
-    .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+    .filter((value, index, self) => self.indexOf(value) === index) // Remove duplicates
+    .filter(url => isValidUrl(url.trim())); // Filter out invalid URLs
     
   const totalLines = lines.length;
   const processedResults: WaybackResult[] = [];
+  const batchSize = 5; // Process URLs in smaller batches to avoid overwhelming the browser
 
-  for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
-    const chunk = lines.slice(i, i + CHUNK_SIZE);
-    const chunkResults = chunk.map(url => ({
-      timestamp: new Date().toLocaleString(),
-      status: 200,
-      url: url.trim(),
-      contentType: getContentType(url.trim())
-    }));
+  for (let i = 0; i < totalLines; i += batchSize) {
+    const batch = lines.slice(i, i + batchSize);
+    const batchPromises = batch.map(async (url) => {
+      const trimmedUrl = url.trim();
+      const status = await checkUrlStatus(trimmedUrl);
+      
+      // Only include URLs that are accessible (status codes 2xx or 3xx)
+      if (status < 400) {
+        return {
+          timestamp: new Date().toLocaleString(),
+          status,
+          url: trimmedUrl,
+          contentType: getContentType(trimmedUrl)
+        };
+      }
+      return null;
+    });
 
-    processedResults.push(...chunkResults);
+    const batchResults = await Promise.all(batchPromises);
+    const validResults = batchResults.filter((result): result is WaybackResult => result !== null);
+    processedResults.push(...validResults);
+
     const progress = Math.min(80 + (i / totalLines) * 20, 100);
     onProgress(progress);
-    await sleep(0);
+    await sleep(100); // Add a small delay between batches
   }
 
+  console.log(`Processed ${totalLines} URLs, found ${processedResults.length} valid URLs`);
   return processedResults;
 };

@@ -1,6 +1,6 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface TerminalProps {
@@ -23,6 +23,12 @@ export const Terminal = ({ logs }: TerminalProps) => {
     if (status >= 200 && status < 300) return "text-terminal-success";
     if (status >= 300 && status < 400) return "text-terminal-warning";
     return "text-terminal-error";
+  };
+
+  const getStatusIcon = (status: number) => {
+    if (status >= 200 && status < 300) return <CheckCircle className="w-4 h-4 text-terminal-success" />;
+    if (status >= 300 && status < 400) return <AlertCircle className="w-4 h-4 text-terminal-warning" />;
+    return <XCircle className="w-4 h-4 text-terminal-error" />;
   };
 
   const sortedLogs = [...logs].sort((a, b) => {
@@ -125,8 +131,11 @@ export const Terminal = ({ logs }: TerminalProps) => {
                   key={index}
                   className="flex items-start space-x-4 rounded bg-terminal-bg/50 p-2 hover:bg-terminal-bg/70 transition-colors"
                 >
-                  <span className={`${getStatusColor(log.status)} min-w-[3rem] font-medium`}>
-                    [{log.status}]
+                  <span className="flex items-center gap-2">
+                    {getStatusIcon(log.status)}
+                    <span className={`${getStatusColor(log.status)} min-w-[3rem] font-medium`}>
+                      [{log.status}]
+                    </span>
                   </span>
                   <span className="text-terminal-text/50 min-w-[150px]">{log.timestamp}</span>
                   <span className="break-all hover:text-terminal-text/80 transition-colors">
