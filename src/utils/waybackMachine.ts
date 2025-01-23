@@ -1,9 +1,9 @@
 import { WaybackResult } from '../types/wayback';
 
-const MAX_RETRIES = 4;
-const CHUNK_SIZE = 1000;
-const TIMEOUT_MS = 30000; // 30 seconds
-const BATCH_SIZE = 50; // Number of URLs to process in parallel
+const MAX_RETRIES = 5;
+const CHUNK_SIZE = 500; // Reduced from 1000 for better reliability
+const TIMEOUT_MS = 45000; // Increased timeout to 45 seconds
+const BATCH_SIZE = 25; // Reduced batch size for better reliability
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -120,6 +120,7 @@ const checkUrlStatus = async (url: string): Promise<number> => {
     const response = await fetch(url, {
       method: 'HEAD',
       mode: 'no-cors',
+      timeout: 10000,
     });
     return response.status;
   } catch (error) {
@@ -129,11 +130,13 @@ const checkUrlStatus = async (url: string): Promise<number> => {
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
+  // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
-    `https://proxy.cors.sh/${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    `https://cors-anywhere.herokuapp.com/${encodeURIComponent(url)}`,
+    `https://crossorigin.me/${encodeURIComponent(url)}`,
+    `https://yacdn.org/proxy/${encodeURIComponent(url)}`,
     `https://cors.eu.org/${encodeURIComponent(url)}`
   ];
 
@@ -154,10 +157,8 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
         'Origin': window.location.origin,
         'X-Requested-With': 'XMLHttpRequest'
       },
-      mode: 'cors',
-      credentials: 'omit',
       signal: controller.signal,
-      redirect: 'follow'
+      credentials: 'omit'
     });
 
     clearTimeout(timeoutId);
@@ -165,22 +166,12 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(`Proxy error (${response.status}):`, errorBody);
-      
-      if (response.status === 403) {
-        throw new Error('Access denied by proxy. Trying another proxy...');
-      }
-      if (response.status === 408 || response.status === 504) {
-        throw new Error('Request timeout. Trying another proxy...');
-      }
-      if (response.status >= 500) {
-        throw new Error('Server error. Trying another proxy...');
-      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const text = await response.text();
     if (!text.trim()) {
-      throw new Error('Empty response from proxy. Trying another proxy...');
+      throw new Error('Empty response from proxy');
     }
 
     return new Response(text);
@@ -192,19 +183,17 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       console.error('Fetch error:', error.message);
       
       if (error.name === 'AbortError') {
-        throw new Error('Request timed out. The server is taking too long to respond.');
+        console.log('Request timed out, trying next proxy...');
       }
 
       if (retryCount < MAX_RETRIES) {
-        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`);
-        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 15000);
+        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}, waiting ${backoffTime}ms`);
         await sleep(backoffTime);
         return fetchWithRetry(url, retryCount + 1);
       }
-      
-      throw new Error('All CORS proxies failed. Please try again later or use a different domain.');
     }
-    throw error;
+    throw new Error('All proxies failed. Please try again later.');
   }
 };
 
@@ -229,25 +218,36 @@ export const processWaybackData = async (
   let offset = 0;
   let hasMore = true;
   let progressCounter = 0;
+  let consecutiveEmptyResponses = 0;
 
   console.log('Starting URL collection for domain:', domain);
 
-  // First phase: Collect all URLs
-  while (hasMore) {
+  while (hasMore && consecutiveEmptyResponses < 3) {
     try {
       const urls = await fetchWaybackPage(domain, offset);
       if (urls.length === 0) {
-        hasMore = false;
+        consecutiveEmptyResponses++;
+        if (consecutiveEmptyResponses >= 3) {
+          console.log('No more URLs found after 3 empty responses');
+          hasMore = false;
+        }
       } else {
+        consecutiveEmptyResponses = 0;
         allUrls = [...allUrls, ...urls];
         offset += CHUNK_SIZE;
         progressCounter += urls.length;
-        onProgress(Math.min(40, (progressCounter / 1000) * 40)); // First 40% for collection
+        onProgress(Math.min(40, (progressCounter / 1000) * 40));
         console.log(`Collected ${progressCounter} URLs so far...`);
+        
+        // Add a small delay between requests to avoid overwhelming the server
+        await sleep(1000);
       }
     } catch (error) {
       console.error('Error in URL collection:', error);
-      break;
+      if (error instanceof Error && error.message.includes('All proxies failed')) {
+        hasMore = false;
+      }
+      await sleep(5000); // Wait longer on error before retrying
     }
   }
 
@@ -255,7 +255,6 @@ export const processWaybackData = async (
   allUrls = [...new Set(allUrls)].filter(url => isValidUrl(url.trim()));
   console.log(`Total unique valid URLs found: ${allUrls.length}`);
 
-  // Second phase: Process URLs in batches
   const processedResults: WaybackResult[] = [];
   const totalUrls = allUrls.length;
 
@@ -265,30 +264,26 @@ export const processWaybackData = async (
       const trimmedUrl = url.trim();
       try {
         const status = await checkUrlStatus(trimmedUrl);
-        if (status < 400) {
-          return {
-            timestamp: new Date().toLocaleString(),
-            status,
-            url: trimmedUrl,
-            contentType: getContentType(trimmedUrl)
-          };
-        }
+        return {
+          timestamp: new Date().toLocaleString(),
+          status,
+          url: trimmedUrl,
+          contentType: getContentType(trimmedUrl)
+        };
       } catch (error) {
         console.error(`Error processing URL ${trimmedUrl}:`, error);
+        return null;
       }
-      return null;
     });
 
     const batchResults = await Promise.all(batchPromises);
     const validResults = batchResults.filter((result): result is WaybackResult => result !== null);
     processedResults.push(...validResults);
 
-    // Calculate progress (40-100%)
     const progress = 40 + ((i / totalUrls) * 60);
     onProgress(Math.min(100, progress));
     
-    // Add a small delay between batches to prevent overwhelming the browser
-    await sleep(100);
+    await sleep(500);
   }
 
   console.log(`Successfully processed ${processedResults.length} valid URLs out of ${totalUrls} total URLs`);
