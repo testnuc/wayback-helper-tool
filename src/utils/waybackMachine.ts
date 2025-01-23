@@ -108,11 +108,11 @@ export const getContentType = (url: string): string => {
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
   // Updated list of more reliable CORS proxies
   const proxyUrls = [
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy/${encodeURIComponent(url)}`,
-    `https://api.scraperapi.com/scrape?url=${encodeURIComponent(url)}`,
-    `https://proxy.scrapeops.io/v1/?api_key=free&url=${encodeURIComponent(url)}`,
-    `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(url)}&x-api-key=free`
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
+    `https://proxy.cors.sh/${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    `https://cors.eu.org/${encodeURIComponent(url)}`
   ];
 
   const controller = new AbortController();
@@ -156,27 +156,15 @@ export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Respo
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      const jsonResponse = await response.json();
-      // Handle different JSON response formats from various proxies
-      if (jsonResponse.contents) {
-        return new Response(jsonResponse.contents);
-      }
-      if (jsonResponse.result) {
-        return new Response(jsonResponse.result);
-      }
-      if (jsonResponse.data) {
-        return new Response(jsonResponse.data);
-      }
-      if (jsonResponse.text) {
-        return new Response(jsonResponse.text);
-      }
-      // If no recognized format, return the raw response
-      return new Response(JSON.stringify(jsonResponse));
+    // Check if the response is empty
+    const text = await response.text();
+    if (!text.trim()) {
+      throw new Error('Empty response from proxy. Trying another proxy...');
     }
 
-    return response;
+    // Return a new Response object with the text
+    return new Response(text);
+
   } catch (error) {
     clearTimeout(timeoutId);
 
