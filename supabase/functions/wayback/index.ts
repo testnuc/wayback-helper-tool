@@ -20,12 +20,12 @@ serve(async (req) => {
 
     console.log(`Fetching URLs for domain: ${domain}`);
     
-    // Direct fetch from Wayback Machine with increased limit
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&limit=1000`;
+    // Increased limit to 5000 URLs and using more efficient parameters
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&limit=5000&fastLatest=true`;
     
     const response = await fetch(waybackUrl, {
       headers: {
-        'User-Agent': 'WaybackArchiveBot/1.0',
+        'User-Agent': 'WaybackArchiveBot/2.0',
       },
     });
 
@@ -36,7 +36,7 @@ serve(async (req) => {
     const text = await response.text();
     const urls = text.split('\n')
       .filter(url => url.trim() !== '')
-      .sort();
+      .sort((a, b) => a.localeCompare(b));
 
     console.log(`Found ${urls.length} URLs`);
     

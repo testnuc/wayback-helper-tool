@@ -1,14 +1,49 @@
 import { supabase } from "@/integrations/supabase/client";
 import { WaybackResult } from "../types/wayback";
 
-export const getContentType = (url: string): string => {
+const getContentType = (url: string): string => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
   
-  // Simplified content type detection for speed
-  if (extension.match(/^(css|js|jsx|ts|tsx|json|jpg|jpeg|png|gif|svg|webp|ico|bmp|mp4|webm|ogg|mov|avi|wmv|pdf|doc|docx|txt|md|xls|xlsx|csv|bak|backup|old|tmp|config|env|ini|key|pem|crt|cert)$/)) {
-    return extension;
-  }
-  return 'others';
+  // Fast content type detection using object lookup
+  const contentTypes: { [key: string]: string } = {
+    css: 'css',
+    js: 'js',
+    jsx: 'js',
+    ts: 'js',
+    tsx: 'js',
+    json: 'json',
+    jpg: 'images',
+    jpeg: 'images',
+    png: 'images',
+    gif: 'images',
+    svg: 'images',
+    webp: 'images',
+    ico: 'images',
+    mp4: 'videos',
+    webm: 'videos',
+    ogg: 'videos',
+    mov: 'videos',
+    pdf: 'pdfs',
+    doc: 'text',
+    docx: 'text',
+    txt: 'text',
+    md: 'text',
+    xls: 'excel',
+    xlsx: 'excel',
+    csv: 'excel',
+    bak: 'backup',
+    backup: 'backup',
+    old: 'backup',
+    config: 'config',
+    env: 'config',
+    ini: 'config',
+    key: 'security',
+    pem: 'security',
+    crt: 'security',
+    cert: 'security'
+  };
+
+  return contentTypes[extension] || 'others';
 };
 
 export const processWaybackData = async (
@@ -30,13 +65,15 @@ export const processWaybackData = async (
     const urls = data.urls || [];
     console.log(`Found ${urls.length} URLs`);
 
-    // Process URLs in a single batch for speed
-    const results: WaybackResult[] = urls.map(url => ({
-      timestamp: new Date().toLocaleString(),
-      status: 200, // We're not checking status anymore
-      url: url.trim(),
-      contentType: getContentType(url.trim())
-    }));
+    // Process URLs in parallel for better performance
+    const results: WaybackResult[] = await Promise.all(
+      urls.map(async (url: string) => ({
+        timestamp: new Date().toLocaleString(),
+        status: 200,
+        url: url.trim(),
+        contentType: getContentType(url.trim())
+      }))
+    );
 
     onProgress(100);
     console.log(`Successfully processed ${results.length} URLs`);
