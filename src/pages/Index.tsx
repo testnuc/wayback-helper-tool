@@ -1,23 +1,35 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { UrlInput } from "@/components/UrlInput";
 import { Terminal } from "@/components/Terminal";
 import { ContentTypeButtons } from "@/components/ContentTypeButtons";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WaybackResult } from "../types/wayback";
 import { processWaybackData, fetchWithRetry } from "../utils/waybackMachine";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<WaybackResult[]>([]);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/auth");
+    } catch (error: any) {
+      toast.error("Error logging out");
+    }
+  };
 
   const storeDomainSearch = async (domain: string) => {
     try {
@@ -94,32 +106,42 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-3xl font-bold">
-              Wayback Machine URL Analyzer
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <UrlInput onFetch={fetchWaybackUrls} isLoading={isLoading} />
-            
-            {isLoading && (
-              <div className="space-y-2">
-                <Progress value={progress} className="w-full" />
-                <p className="text-sm text-muted-foreground">
-                  Processing domain... {progress}%
-                </p>
-              </div>
-            )}
+        <div className="flex justify-between items-center">
+          <Card className="flex-1">
+            <CardHeader>
+              <CardTitle className="text-3xl font-bold">
+                Wayback Machine URL Analyzer
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <UrlInput onFetch={fetchWaybackUrls} isLoading={isLoading} />
+              
+              {isLoading && (
+                <div className="space-y-2">
+                  <Progress value={progress} className="w-full" />
+                  <p className="text-sm text-muted-foreground">
+                    Processing domain... {progress}%
+                  </p>
+                </div>
+              )}
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-4"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
 
         {results.length > 0 && (
           <Card>
