@@ -133,7 +133,7 @@ const fetchWaybackPage = async (domain: string, from: number): Promise<string[]>
       body: {
         domain,
         offset: from,
-        limit: 500
+        limit: 100 // Reduced from 500 to 100
       }
     });
 
@@ -158,10 +158,12 @@ export const processWaybackData = async (
   let hasMore = true;
   let progressCounter = 0;
   let consecutiveEmptyResponses = 0;
+  const MAX_URLS = 1000; // Limit total URLs to process
+  const BATCH_DELAY = 1000; // 1 second delay between batches
 
   console.log('Starting URL collection for domain:', domain);
 
-  while (hasMore && consecutiveEmptyResponses < 3) {
+  while (hasMore && consecutiveEmptyResponses < 3 && allUrls.length < MAX_URLS) {
     try {
       const urls = await fetchWaybackPage(domain, offset);
       
@@ -174,18 +176,18 @@ export const processWaybackData = async (
       } else {
         consecutiveEmptyResponses = 0;
         allUrls = [...allUrls, ...urls];
-        offset += 500;
+        offset += 100; // Adjusted for new batch size
         progressCounter += urls.length;
         onProgress(Math.min(40, (progressCounter / 1000) * 40));
         console.log(`Collected ${progressCounter} URLs so far...`);
         
-        // Add a small delay between requests
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Add delay between requests
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
       }
     } catch (error) {
       console.error('Error in URL collection:', error);
       hasMore = false;
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY * 2));
     }
   }
 
@@ -194,10 +196,10 @@ export const processWaybackData = async (
   console.log(`Total unique valid URLs found: ${allUrls.length}`);
 
   const processedResults: WaybackResult[] = [];
-  const totalUrls = allUrls.length;
-  const BATCH_SIZE = 25;
+  const totalUrls = Math.min(allUrls.length, MAX_URLS);
+  const BATCH_SIZE = 10; // Reduced from 25 to 10
 
-  for (let i = 0; i < allUrls.length; i += BATCH_SIZE) {
+  for (let i = 0; i < totalUrls; i += BATCH_SIZE) {
     const batch = allUrls.slice(i, i + BATCH_SIZE);
     const batchPromises = batch.map(async (url) => {
       const trimmedUrl = url.trim();
@@ -222,7 +224,7 @@ export const processWaybackData = async (
     const progress = 40 + ((i / totalUrls) * 60);
     onProgress(Math.min(100, progress));
     
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
   }
 
   console.log(`Successfully processed ${processedResults.length} valid URLs out of ${totalUrls} total URLs`);

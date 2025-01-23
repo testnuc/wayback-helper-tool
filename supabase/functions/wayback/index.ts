@@ -6,7 +6,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -41,7 +40,7 @@ serve(async (req) => {
     }
 
     console.log('Fetching from Wayback Machine:', domain, offset, limit);
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 500}`;
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 100}`; // Reduced limit to 100
     
     const response = await fetch(waybackUrl, {
       headers: {
