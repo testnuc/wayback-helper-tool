@@ -9,7 +9,10 @@ const corsHeaders = {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
@@ -49,6 +52,7 @@ serve(async (req) => {
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
+        status: 200
       }
     );
 
