@@ -11,6 +11,11 @@ export const getContentType = (url: string): string => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
   const filename = url.split('/').pop()?.toLowerCase() || '';
   
+  // CSS files
+  if (extension === 'css' || filename.includes('.css') || url.includes('/css/')) {
+    return 'css';
+  }
+  
   // HTML files
   if (extension === 'html' || extension === 'htm') {
     return 'html';
@@ -102,7 +107,6 @@ export const getContentType = (url: string): string => {
 };
 
 export const fetchWithRetry = async (url: string, retryCount = 0): Promise<Response> => {
-  // Updated list of CORS proxies with more reliable options
   const proxyUrls = [
     `https://corsproxy.io/?${encodeURIComponent(url)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
@@ -188,11 +192,13 @@ export const processWaybackData = async (
     throw new Error('No archived URLs found for this domain');
   }
 
-  const lines = data.split('\n').filter(line => line.trim() !== '');
+  const lines = data.split('\n')
+    .filter(line => line.trim() !== '')
+    .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+    
   const totalLines = lines.length;
   const processedResults: WaybackResult[] = [];
 
-  // Process in chunks to prevent UI freezing
   for (let i = 0; i < totalLines; i += CHUNK_SIZE) {
     const chunk = lines.slice(i, i + CHUNK_SIZE);
     const chunkResults = chunk.map(url => ({
@@ -205,7 +211,7 @@ export const processWaybackData = async (
     processedResults.push(...chunkResults);
     const progress = Math.min(80 + (i / totalLines) * 20, 100);
     onProgress(progress);
-    await sleep(0); // Allow UI to update
+    await sleep(0);
   }
 
   return processedResults;

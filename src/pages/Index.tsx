@@ -34,7 +34,6 @@ const Index = () => {
         .replace(/^https?:\/\//, '')
         .replace(/\/+$/, '');
       
-      // Add limit parameter to prevent too large responses
       const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${cleanDomain}/*&output=text&fl=original&collapse=urlkey&limit=10000`;
       
       setProgress(40);
@@ -112,6 +111,7 @@ const Index = () => {
               <ContentTypeButtons
                 counts={{
                   js: results.filter(r => r.contentType === "js").length,
+                  css: results.filter(r => r.contentType === "css").length,
                   json: results.filter(r => r.contentType === "json").length,
                   text: results.filter(r => r.contentType === "text").length,
                   html: results.filter(r => r.contentType === "html").length,

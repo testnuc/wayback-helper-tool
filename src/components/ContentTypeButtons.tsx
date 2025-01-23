@@ -10,7 +10,8 @@ import {
   Archive,
   Shield,
   Settings,
-  Globe // Added for HTML files
+  Globe,
+  Paintbrush // Added for CSS files
 } from "lucide-react";
 
 interface ContentTypeButtonsProps {
@@ -25,7 +26,8 @@ interface ContentTypeButtonsProps {
     backup: number;
     security: number;
     config: number;
-    html: number; // Added HTML type
+    html: number;
+    css: number; // Added CSS type
     others: number;
   };
   onFilter: (type: string) => void;
@@ -39,9 +41,10 @@ export const ContentTypeButtons = ({
 }: ContentTypeButtonsProps) => {
   const buttons = [
     { type: "js", icon: FileCode, label: "JavaScript", count: counts.js },
+    { type: "css", icon: Paintbrush, label: "CSS", count: counts.css }, // Added CSS button
     { type: "json", icon: FileJson, label: "JSON", count: counts.json },
     { type: "text", icon: FileText, label: "Text", count: counts.text },
-    { type: "html", icon: Globe, label: "HTML", count: counts.html }, // Added HTML button
+    { type: "html", icon: Globe, label: "HTML", count: counts.html },
     { type: "images", icon: Image, label: "Images", count: counts.images },
     { type: "videos", icon: Video, label: "Videos", count: counts.videos },
     { type: "pdfs", icon: FileText, label: "PDFs", count: counts.pdfs },
