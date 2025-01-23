@@ -133,7 +133,7 @@ const fetchWaybackPage = async (domain: string, from: number): Promise<string[]>
       body: {
         domain,
         offset: from,
-        limit: 25 // Reduced from 50 to 25 for better performance
+        limit: 50 // Increased from 25 to 50
       }
     });
 
@@ -158,27 +158,26 @@ export const processWaybackData = async (
   let hasMore = true;
   let progressCounter = 0;
   let consecutiveEmptyResponses = 0;
-  const MAX_URLS = 250; // Reduced from 1000 to 250 for better performance
-  const BATCH_DELAY = 1000; // Reduced from 1500 to 1000ms
-  const BATCH_SIZE = 5; // Increased from 3 to 5 for parallel processing
+  const MAX_URLS = 200; // Reduced from 250 to 200 for faster processing
+  const BATCH_SIZE = 10; // Increased from 5 to 10 for parallel processing
 
   console.log('Starting URL collection for domain:', domain);
   onProgress(5);
 
-  while (hasMore && consecutiveEmptyResponses < 3 && allUrls.length < MAX_URLS) {
+  while (hasMore && consecutiveEmptyResponses < 2 && allUrls.length < MAX_URLS) {
     try {
       const urls = await fetchWaybackPage(domain, offset);
       
       if (urls.length === 0) {
         consecutiveEmptyResponses++;
-        if (consecutiveEmptyResponses >= 3) {
-          console.log('No more URLs found after 3 empty responses');
+        if (consecutiveEmptyResponses >= 2) {
+          console.log('No more URLs found after 2 empty responses');
           hasMore = false;
         }
       } else {
         consecutiveEmptyResponses = 0;
-        allUrls = [...new Set([...allUrls, ...urls])]; // Deduplicate immediately
-        offset += 25; // Adjusted for new limit
+        allUrls = [...new Set([...allUrls, ...urls])];
+        offset += 50;
         progressCounter += urls.length;
         const collectionProgress = Math.min(40, (progressCounter / MAX_URLS) * 40);
         onProgress(collectionProgress);
@@ -188,9 +187,6 @@ export const processWaybackData = async (
           console.log(`Reached maximum URL limit of ${MAX_URLS}`);
           hasMore = false;
         }
-        
-        // Reduced delay between batches
-        await new Promise(resolve => setTimeout(resolve, 500));
       }
     } catch (error) {
       console.error('Error in URL collection:', error);
@@ -208,7 +204,6 @@ export const processWaybackData = async (
   const processedResults: WaybackResult[] = [];
   const totalUrls = allUrls.length;
 
-  // Process URLs in parallel batches
   for (let i = 0; i < totalUrls; i += BATCH_SIZE) {
     const batch = allUrls.slice(i, i + BATCH_SIZE);
     const batchPromises = batch.map(async (url) => {
@@ -234,9 +229,6 @@ export const processWaybackData = async (
     const progress = 40 + ((i / totalUrls) * 60);
     onProgress(Math.min(100, progress));
     console.log(`Processing progress: ${Math.round(progress)}%`);
-    
-    // Reduced delay between batches
-    await new Promise(resolve => setTimeout(resolve, 500));
   }
 
   console.log(`Successfully processed ${processedResults.length} valid URLs out of ${totalUrls} total URLs`);

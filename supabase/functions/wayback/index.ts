@@ -7,12 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TIMEOUT_MS = 10000;
-const MAX_RETRIES = 2;
+const TIMEOUT_MS = 5000; // Reduced timeout
+const MAX_RETRIES = 1; // Reduced retries
 
 async function fetchWithRetry(url: string, options: any, retries = MAX_RETRIES): Promise<Response> {
   try {
-    console.log(`Attempting to fetch ${url}, retries left: ${retries}`);
+    console.log(`Fetching ${url}, retries left: ${retries}`);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
     
@@ -27,7 +27,7 @@ async function fetchWithRetry(url: string, options: any, retries = MAX_RETRIES):
     console.error(`Error fetching ${url}:`, error);
     if (retries > 0 && error.name === 'AbortError') {
       console.log(`Retrying fetch for ${url}, ${retries - 1} retries left`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+      await new Promise(resolve => setTimeout(resolve, 500)); // Reduced retry delay
       return fetchWithRetry(url, options, retries - 1);
     }
     throw error;
@@ -35,7 +35,6 @@ async function fetchWithRetry(url: string, options: any, retries = MAX_RETRIES):
 }
 
 serve(async (req) => {
-  // Always handle OPTIONS request first
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       status: 204,
@@ -84,14 +83,13 @@ serve(async (req) => {
       }
     }
 
-    // Validate domain parameter
     if (!domain || typeof domain !== 'string') {
       throw new Error('Domain is required and must be a string');
     }
 
     console.log('Fetching from Wayback Machine:', domain, offset, limit);
     
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 25}`;
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&offset=${offset || 0}&limit=${limit || 50}`; // Increased limit per request
     
     const response = await fetchWithRetry(waybackUrl, {
       headers: {
