@@ -35,12 +35,22 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: window.location.origin,
+          },
         });
+
         if (error) throw error;
-        toast.success("Check your email to confirm your account!");
+
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          toast.error("This email is already registered. Please sign in instead.");
+          setIsSignUp(false);
+        } else {
+          toast.success("Check your email to confirm your account!");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -50,6 +60,7 @@ const Auth = () => {
         navigate("/");
       }
     } catch (error: any) {
+      console.error("Auth error:", error);
       toast.error(error.message);
     } finally {
       setIsLoading(false);
