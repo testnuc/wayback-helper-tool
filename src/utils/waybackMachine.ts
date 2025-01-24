@@ -1,49 +1,48 @@
 import { supabase } from "@/integrations/supabase/client";
 import { WaybackResult } from "../types/wayback";
 
+// Optimized content type detection using a Map for O(1) lookup
+const contentTypeMap = new Map([
+  ['css', 'css'],
+  ['js', 'js'],
+  ['jsx', 'js'],
+  ['ts', 'js'],
+  ['tsx', 'js'],
+  ['json', 'json'],
+  ['jpg', 'images'],
+  ['jpeg', 'images'],
+  ['png', 'images'],
+  ['gif', 'images'],
+  ['svg', 'images'],
+  ['webp', 'images'],
+  ['ico', 'images'],
+  ['mp4', 'videos'],
+  ['webm', 'videos'],
+  ['ogg', 'videos'],
+  ['mov', 'videos'],
+  ['pdf', 'pdfs'],
+  ['doc', 'text'],
+  ['docx', 'text'],
+  ['txt', 'text'],
+  ['md', 'text'],
+  ['xls', 'excel'],
+  ['xlsx', 'excel'],
+  ['csv', 'excel'],
+  ['bak', 'backup'],
+  ['backup', 'backup'],
+  ['old', 'backup'],
+  ['config', 'config'],
+  ['env', 'config'],
+  ['ini', 'config'],
+  ['key', 'security'],
+  ['pem', 'security'],
+  ['crt', 'security'],
+  ['cert', 'security']
+]);
+
 const getContentType = (url: string): string => {
   const extension = url.split('.').pop()?.toLowerCase() || '';
-  
-  // Fast content type detection using object lookup
-  const contentTypes: { [key: string]: string } = {
-    css: 'css',
-    js: 'js',
-    jsx: 'js',
-    ts: 'js',
-    tsx: 'js',
-    json: 'json',
-    jpg: 'images',
-    jpeg: 'images',
-    png: 'images',
-    gif: 'images',
-    svg: 'images',
-    webp: 'images',
-    ico: 'images',
-    mp4: 'videos',
-    webm: 'videos',
-    ogg: 'videos',
-    mov: 'videos',
-    pdf: 'pdfs',
-    doc: 'text',
-    docx: 'text',
-    txt: 'text',
-    md: 'text',
-    xls: 'excel',
-    xlsx: 'excel',
-    csv: 'excel',
-    bak: 'backup',
-    backup: 'backup',
-    old: 'backup',
-    config: 'config',
-    env: 'config',
-    ini: 'config',
-    key: 'security',
-    pem: 'security',
-    crt: 'security',
-    cert: 'security'
-  };
-
-  return contentTypes[extension] || 'others';
+  return contentTypeMap.get(extension) || 'others';
 };
 
 export const processWaybackData = async (
@@ -63,17 +62,27 @@ export const processWaybackData = async (
     onProgress(50);
 
     const urls = data.urls || [];
-    console.log(`Found ${urls.length} URLs`);
+    console.log(`Processing ${urls.length} URLs`);
 
-    // Process URLs in parallel for better performance
-    const results: WaybackResult[] = await Promise.all(
-      urls.map(async (url: string) => ({
-        timestamp: new Date().toLocaleString(),
+    // Process URLs in chunks for better performance
+    const CHUNK_SIZE = 1000;
+    const results: WaybackResult[] = [];
+    const timestamp = new Date().toLocaleString();
+
+    for (let i = 0; i < urls.length; i += CHUNK_SIZE) {
+      const chunk = urls.slice(i, i + CHUNK_SIZE);
+      const chunkResults = chunk.map((url: string) => ({
+        timestamp,
         status: 200,
         url: url.trim(),
         contentType: getContentType(url.trim())
-      }))
-    );
+      }));
+      results.push(...chunkResults);
+      
+      // Update progress based on chunks processed
+      const progress = Math.min(50 + Math.floor((i / urls.length) * 50), 99);
+      onProgress(progress);
+    }
 
     onProgress(100);
     console.log(`Successfully processed ${results.length} URLs`);

@@ -20,8 +20,8 @@ serve(async (req) => {
 
     console.log(`Fetching URLs for domain: ${domain}`);
     
-    // Increased limit to 5000 URLs and using more efficient parameters
-    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&limit=5000&fastLatest=true`;
+    // Optimized URL fetching with increased limit and efficient parameters
+    const waybackUrl = `https://web.archive.org/cdx/search/cdx?url=*.${domain}/*&output=text&fl=original&collapse=urlkey&limit=10000&fastLatest=true&filter=statuscode:200`;
     
     const response = await fetch(waybackUrl, {
       headers: {
@@ -34,14 +34,13 @@ serve(async (req) => {
     }
 
     const text = await response.text();
-    const urls = text.split('\n')
-      .filter(url => url.trim() !== '')
-      .sort((a, b) => a.localeCompare(b));
+    // Pre-allocate array size for better performance
+    const urls = new Set(text.split('\n').filter(Boolean));
 
-    console.log(`Found ${urls.length} URLs`);
+    console.log(`Found ${urls.size} unique URLs`);
     
     return new Response(
-      JSON.stringify({ urls }),
+      JSON.stringify({ urls: Array.from(urls) }),
       { 
         headers: { 
           ...corsHeaders,
