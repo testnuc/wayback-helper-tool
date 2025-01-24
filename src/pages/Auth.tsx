@@ -35,19 +35,6 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { data: existingUser } = await supabase
-          .from('profiles')
-          .select()
-          .eq('email', email)
-          .single();
-
-        if (existingUser) {
-          toast.error("This email is already registered. Please sign in instead.");
-          setIsSignUp(false);
-          setIsLoading(false);
-          return;
-        }
-
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
