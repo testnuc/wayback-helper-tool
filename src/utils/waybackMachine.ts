@@ -45,6 +45,20 @@ const getContentType = (url: string): string => {
   return contentTypeMap.get(extension) || 'others';
 };
 
+const storeDomainSearch = async (domain: string) => {
+  try {
+    const { error } = await supabase
+      .from('domain_searches')
+      .insert([{ domain }]);
+
+    if (error) {
+      console.error('Error storing domain search:', error);
+    }
+  } catch (err) {
+    console.error('Error in storeDomainSearch:', err);
+  }
+};
+
 export const processWaybackData = async (
   domain: string,
   onProgress: (progress: number) => void
@@ -52,6 +66,10 @@ export const processWaybackData = async (
   try {
     console.log('Starting URL collection for domain:', domain);
     onProgress(10);
+
+    // Store the domain search first
+    await storeDomainSearch(domain);
+    onProgress(20);
 
     const { data, error } = await supabase.functions.invoke('wayback', {
       body: { domain }
