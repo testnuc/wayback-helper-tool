@@ -35,11 +35,15 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
+        // Get the current URL without any path or query parameters
+        const baseUrl = window.location.origin;
+        console.log("Redirect URL:", baseUrl); // Debug log
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: `${baseUrl}/auth`,
           },
         });
 
