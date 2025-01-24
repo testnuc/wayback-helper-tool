@@ -39,7 +39,7 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `https://wayback-up.vercel.app/auth`,
+            emailRedirectTo: window.location.origin + '/auth',
             data: {
               email,
             }

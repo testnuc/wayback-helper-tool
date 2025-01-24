@@ -80,28 +80,21 @@ export type Database = {
       }
       profiles: {
         Row: {
-          id: string
-          email: string
           created_at: string
+          email: string
+          id: string
         }
         Insert: {
-          id: string
-          email: string
           created_at?: string
+          email: string
+          id: string
         }
         Update: {
-          id?: string
-          email?: string
           created_at?: string
+          email?: string
+          id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
     }
     Views: {
