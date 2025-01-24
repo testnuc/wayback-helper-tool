@@ -35,18 +35,15 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        // Get the current URL without any path or query parameters
         const siteUrl = "https://wayback-finder.vercel.app";
-        console.log("Site URL:", siteUrl); // Debug log
+        console.log("Attempting signup with site URL:", siteUrl);
 
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            // Use the full site URL for email redirects
             emailRedirectTo: `${siteUrl}/auth`,
             data: {
-              // Add any additional user metadata here if needed
               redirect_url: `${siteUrl}/auth`,
             }
           },
@@ -59,13 +56,17 @@ const Auth = () => {
           setIsSignUp(false);
         } else {
           toast.success("Check your email to confirm your account!");
+          console.log("Signup successful, verification email sent");
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        
         if (error) throw error;
+        
+        toast.success("Successfully signed in!");
         navigate("/");
       }
     } catch (error: any) {
@@ -80,7 +81,6 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
       <Ripple count={5} color="bg-primary/5" />
       
-      {/* About Section */}
       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-8">
         <span>Discover historical website data with Wayback Finder</span>
       </div>
