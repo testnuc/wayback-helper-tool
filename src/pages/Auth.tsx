@@ -36,7 +36,7 @@ const Auth = () => {
     try {
       if (isSignUp) {
         // Get the current URL without any path or query parameters
-        const siteUrl = window.location.origin;
+        const siteUrl = "https://wayback-finder.vercel.app";
         console.log("Site URL:", siteUrl); // Debug log
 
         const { data, error } = await supabase.auth.signUp({
