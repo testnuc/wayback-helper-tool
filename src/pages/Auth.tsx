@@ -35,7 +35,7 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const siteUrl = "https://wayback-finder.vercel.app";
+        const siteUrl = "https://wayback-up.vercel.app";
         console.log("Attempting signup with site URL:", siteUrl);
 
         const { data, error } = await supabase.auth.signUp({
