@@ -35,16 +35,26 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const siteUrl = "https://wayback-up.vercel.app";
-        console.log("Attempting signup with site URL:", siteUrl);
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select()
+          .eq('email', email)
+          .single();
+
+        if (existingUser) {
+          toast.error("This email is already registered. Please sign in instead.");
+          setIsSignUp(false);
+          setIsLoading(false);
+          return;
+        }
 
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${siteUrl}/auth`,
+            emailRedirectTo: `https://wayback-up.vercel.app/auth`,
             data: {
-              redirect_url: `${siteUrl}/auth`,
+              email,
             }
           },
         });
@@ -59,19 +69,31 @@ const Auth = () => {
           console.log("Signup successful, verification email sent");
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        // Sign In
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         
-        if (error) throw error;
+        if (error) {
+          if (error.message === "Email not confirmed") {
+            toast.error("Please verify your email before signing in.");
+          } else if (error.message === "Invalid login credentials") {
+            toast.error("Invalid email or password. Please try again.");
+          } else {
+            throw error;
+          }
+          return;
+        }
         
-        toast.success("Successfully signed in!");
-        navigate("/");
+        if (data.user) {
+          toast.success("Successfully signed in!");
+          navigate("/");
+        }
       }
     } catch (error: any) {
       console.error("Auth error:", error);
-      toast.error(error.message);
+      toast.error(error.message || "An error occurred during authentication");
     } finally {
       setIsLoading(false);
     }
