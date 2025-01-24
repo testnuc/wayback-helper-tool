@@ -35,7 +35,8 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
+        // Sign Up flow
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -46,34 +47,44 @@ const Auth = () => {
           },
         });
 
-        if (error) throw error;
+        if (signUpError) {
+          if (signUpError.message.includes("User already registered")) {
+            toast.error("This email is already registered. Please sign in instead.");
+            setIsSignUp(false);
+          } else {
+            toast.error(signUpError.message);
+          }
+          return;
+        }
 
-        if (data.user && data.user.identities && data.user.identities.length === 0) {
-          toast.error("This email is already registered. Please sign in instead.");
-          setIsSignUp(false);
-        } else {
-          toast.success("Check your email to confirm your account!");
-          console.log("Signup successful, verification email sent");
+        if (signUpData.user) {
+          if (signUpData.user.identities?.length === 0) {
+            toast.error("This email is already registered. Please sign in instead.");
+            setIsSignUp(false);
+          } else {
+            toast.success("Please check your email to verify your account!");
+            console.log("Signup successful, verification email sent");
+          }
         }
       } else {
-        // Sign In
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // Sign In flow
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         
-        if (error) {
-          if (error.message === "Email not confirmed") {
+        if (signInError) {
+          if (signInError.message === "Email not confirmed") {
             toast.error("Please verify your email before signing in.");
-          } else if (error.message === "Invalid login credentials") {
+          } else if (signInError.message.includes("Invalid login credentials")) {
             toast.error("Invalid email or password. Please try again.");
           } else {
-            throw error;
+            toast.error(signInError.message);
           }
           return;
         }
         
-        if (data.user) {
+        if (signInData.user) {
           toast.success("Successfully signed in!");
           navigate("/");
         }
@@ -116,6 +127,7 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -125,6 +137,7 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
                 minLength={6}
               />
               <p className="text-xs text-muted-foreground">
@@ -139,6 +152,7 @@ const Auth = () => {
               variant="ghost"
               className="w-full"
               onClick={() => setIsSignUp(!isSignUp)}
+              disabled={isLoading}
             >
               {isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
             </Button>
