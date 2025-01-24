@@ -36,14 +36,19 @@ const Auth = () => {
     try {
       if (isSignUp) {
         // Get the current URL without any path or query parameters
-        const baseUrl = window.location.origin;
-        console.log("Redirect URL:", baseUrl); // Debug log
+        const siteUrl = window.location.origin;
+        console.log("Site URL:", siteUrl); // Debug log
 
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${baseUrl}/auth`,
+            // Use the full site URL for email redirects
+            emailRedirectTo: `${siteUrl}/auth`,
+            data: {
+              // Add any additional user metadata here if needed
+              redirect_url: `${siteUrl}/auth`,
+            }
           },
         });
 
