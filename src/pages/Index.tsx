@@ -6,7 +6,7 @@ import { Terminal } from "@/components/Terminal";
 import { ContentTypeButtons } from "@/components/ContentTypeButtons";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, LogOut } from "lucide-react";
+import { AlertCircle, LogOut, Heart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WaybackResult } from "../types/wayback";
 import { processWaybackData } from "../utils/waybackMachine";
@@ -94,6 +94,20 @@ const Index = () => {
     <div className="min-h-screen bg-background p-8 relative">
       <Ripple count={5} color="bg-primary/5" />
       <div className="max-w-6xl mx-auto space-y-8">
+        {/* Creator Attribution */}
+        <div className="flex items-center justify-center gap-2 text-sm">
+          <span>created by</span>
+          <a 
+            href="https://www.hackwithsingh.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            www.hackwithsingh.com
+          </a>
+          <Heart className="h-4 w-4 text-red-500 animate-pulse" fill="currentColor" />
+        </div>
+
         {/* About Section */}
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <span>Discover and analyze archived URLs from the Wayback Machine</span>
